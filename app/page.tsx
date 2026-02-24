@@ -24,15 +24,15 @@ export default function Home() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => setSidebarOpen((p) => !p)}
-            className="text-[#333] hover:text-[#666] transition-colors font-mono text-sm"
+            className="text-[#c0bbb4] hover:text-[#666] transition-colors font-mono text-sm"
             title="필터 토글"
           >
             ☰
           </button>
-          <span className="font-serif text-base text-[#c0bbb4] tracking-wide">
-            지출 원장
+          <span className="font-serif text-base text-[#e0ddd8] tracking-wide">
+            ACCOUNT BOOK
           </span>
-          <span className="text-[9px] font-mono text-[#333] tracking-widest uppercase hidden sm:block">
+          <span className="text-[9px] font-mono text-[#c0bbb4] tracking-widest uppercase hidden sm:block">
             Expense Ledger
           </span>
         </div>
@@ -43,7 +43,7 @@ export default function Home() {
             className={`text-[9px] font-mono px-3 py-1.5 border tracking-widest uppercase transition-all ${
               view === "table"
                 ? "border-[#c9a96e] text-[#c9a96e]"
-                : "border-[#1a1a1e] text-[#333] hover:border-[#2a2a2e] hover:text-[#555]"
+                : "border-[#1a1a1e] text-[#c0bbb4] hover:border-[#2a2a2e] hover:text-[#555]"
             }`}
           >
             표
@@ -53,7 +53,7 @@ export default function Home() {
             className={`text-[9px] font-mono px-3 py-1.5 border tracking-widest uppercase transition-all ${
               view === "charts"
                 ? "border-[#c9a96e] text-[#c9a96e]"
-                : "border-[#1a1a1e] text-[#333] hover:border-[#2a2a2e] hover:text-[#555]"
+                : "border-[#1a1a1e] text-[#c0bbb4] hover:border-[#2a2a2e] hover:text-[#555]"
             }`}
           >
             차트

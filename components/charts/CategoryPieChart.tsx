@@ -61,7 +61,7 @@ export default function CategoryPieChart() {
 
   if (!data.length) {
     return (
-      <div className="flex items-center justify-center h-full text-[#333] text-xs tracking-widest">
+      <div className="flex items-center justify-center h-full text-[#c0bbb4] text-xs tracking-widest">
         데이터 없음
       </div>
     );
