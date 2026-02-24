@@ -1,65 +1,121 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useStore } from "@/store/useStore";
+import FilterPanel from "@/components/filters/FilterPanel";
+import ExpenseTable from "@/components/table/ExpenseTable";
+import StatsCards from "@/components/ui/StatsCards";
+import CategoryPieChart from "@/components/charts/CategoryPieChart";
+import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
 
 export default function Home() {
+  const { fetchExpenses, loading, error } = useStore();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [view, setView] = useState<"table" | "charts">("table");
+
+  useEffect(() => {
+    fetchExpenses();
+  }, [fetchExpenses]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="min-h-screen bg-[#0e0e10] text-[#e8e4dc] flex flex-col">
+      {/* Top bar */}
+      <header className="flex-shrink-0 border-b border-[#1a1a1e] flex items-center justify-between px-6 h-12">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setSidebarOpen((p) => !p)}
+            className="text-[#333] hover:text-[#666] transition-colors font-mono text-sm"
+            title="필터 토글"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            ☰
+          </button>
+          <span className="font-serif text-base text-[#c0bbb4] tracking-wide">
+            지출 원장
+          </span>
+          <span className="text-[9px] font-mono text-[#333] tracking-widest uppercase hidden sm:block">
+            Expense Ledger
+          </span>
         </div>
-      </main>
+
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setView("table")}
+            className={`text-[9px] font-mono px-3 py-1.5 border tracking-widest uppercase transition-all ${
+              view === "table"
+                ? "border-[#c9a96e] text-[#c9a96e]"
+                : "border-[#1a1a1e] text-[#333] hover:border-[#2a2a2e] hover:text-[#555]"
+            }`}
+          >
+            표
+          </button>
+          <button
+            onClick={() => setView("charts")}
+            className={`text-[9px] font-mono px-3 py-1.5 border tracking-widest uppercase transition-all ${
+              view === "charts"
+                ? "border-[#c9a96e] text-[#c9a96e]"
+                : "border-[#1a1a1e] text-[#333] hover:border-[#2a2a2e] hover:text-[#555]"
+            }`}
+          >
+            차트
+          </button>
+        </div>
+      </header>
+
+      {/* Stats bar */}
+      <div className="flex-shrink-0">
+        <StatsCards />
+      </div>
+
+      {/* Body */}
+      <div className="flex flex-1 min-h-0">
+        {/* Sidebar */}
+        {sidebarOpen && (
+          <aside className="w-64 flex-shrink-0 border-r border-[#1a1a1e] overflow-hidden flex flex-col">
+            <FilterPanel />
+          </aside>
+        )}
+
+        {/* Main content */}
+        <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-[#222] text-[9px] font-mono tracking-widest uppercase mb-4">
+                  Loading
+                </div>
+                <div className="flex gap-1 justify-center">
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="w-1 h-4 bg-[#c9a96e] opacity-40 animate-pulse"
+                      style={{ animationDelay: `${i * 0.15}s` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex-1 flex items-center justify-center text-[#553333] text-xs font-mono">
+              백엔드 연결 오류: {error}
+            </div>
+          ) : view === "table" ? (
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <ExpenseTable />
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-auto p-6">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-px bg-[#1a1a1e] h-full min-h-[600px]">
+                <div className="bg-[#0e0e10] p-6 flex flex-col min-h-[300px]">
+                  <CategoryPieChart />
+                </div>
+                <div className="bg-[#0e0e10] p-6 flex flex-col min-h-[300px]">
+                  <MonthlyBarChart />
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
