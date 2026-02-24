@@ -28,7 +28,7 @@ function Chip({
 
 function Section({ title }: { title: string }) {
   return (
-    <div className="text-[9px] tracking-widest uppercase text-[#333] font-mono pt-4 pb-2 border-t border-[#1a1a1e] mt-2">
+    <div className="text-[9px] tracking-widest uppercase text-[#c0bbb4] font-mono pt-4 pb-2 border-t border-[#1a1a1e] mt-2">
       {title}
     </div>
   );
@@ -66,7 +66,7 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
         </div>
         <button
           onClick={resetFilters}
-          className="text-[9px] tracking-widest uppercase text-[#333] hover:text-[#c9a96e] font-mono transition-colors"
+          className="text-[9px] tracking-widest uppercase text-[#c0bbb4] hover:text-[#c9a96e] font-mono transition-colors"
         >
           초기화
         </button>
@@ -83,7 +83,7 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
               className={`flex-1 text-[9px] py-1 border font-mono transition-all ${
                 filters.dateMode === mode
                   ? "border-[#c9a96e] text-[#c9a96e]"
-                  : "border-[#222] text-[#444] hover:border-[#333]"
+                  : "border-[#222] text-[#444] hover:border-[#c0bbb4]"
               }`}
             >
               {mode === "range" ? "기간" : mode === "before" ? "이전" : "이후"}
@@ -93,7 +93,7 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
 
         {filters.dateMode !== "after" && (
           <div className="mb-2">
-            <label className="text-[9px] text-[#333] font-mono block mb-1">
+            <label className="text-[9px] text-[#c0bbb4] font-mono block mb-1">
               {filters.dateMode === "before" ? "기준일 (미만)" : "시작일"}
             </label>
             <input
@@ -106,7 +106,7 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
         )}
         {filters.dateMode !== "before" && (
           <div className="mb-2">
-            <label className="text-[9px] text-[#333] font-mono block mb-1">
+            <label className="text-[9px] text-[#c0bbb4] font-mono block mb-1">
               {filters.dateMode === "after" ? "기준일 (초과)" : "종료일"}
             </label>
             <input

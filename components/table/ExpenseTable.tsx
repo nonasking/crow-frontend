@@ -54,7 +54,7 @@ export default function ExpenseTable() {
                   } ${
                     sortKey === col.key
                       ? "text-[#c9a96e]"
-                      : "text-[#333] hover:text-[#555]"
+                      : "text-[#c0bbb4] hover:text-[#555]"
                   }`}
                 >
                   {col.label}
@@ -90,7 +90,7 @@ export default function ExpenseTable() {
                     </span>
                   </td>
                   <td className="px-4 py-2.5 font-mono text-[#444]">{e.sub_category}</td>
-                  <td className="px-4 py-2.5 font-mono text-[#c0bbb4] group-hover:text-[#e8e4dc] transition-colors">
+                  <td className="px-4 py-2.5 font-mono text-[#e0ddd8] group-hover:text-[#e8e4dc] transition-colors">
                     {e.item}
                   </td>
                   <td className="px-4 py-2.5 font-mono text-[#3a3a3e]">{e.payment_method}</td>
@@ -98,7 +98,7 @@ export default function ExpenseTable() {
                     <span className="text-[#e8e4dc]">{e.amount.toLocaleString()}</span>
                     <span className="text-[#2a2a2e] ml-0.5">원</span>
                   </td>
-                  <td className="px-4 py-2.5 font-mono text-[#333] max-w-[180px] truncate">
+                  <td className="px-4 py-2.5 font-mono text-[#c0bbb4] max-w-[180px] truncate">
                     {e.memo || "—"}
                   </td>
                 </tr>
@@ -110,7 +110,7 @@ export default function ExpenseTable() {
 
       {/* Pagination */}
       <div className="flex items-center justify-between border-t border-[#1a1a1e] px-4 py-3 flex-shrink-0">
-        <span className="text-[9px] font-mono text-[#333] tabular-nums">
+        <span className="text-[9px] font-mono text-[#c0bbb4] tabular-nums">
           {((safePage - 1) * PER_PAGE + 1).toLocaleString()}–
           {Math.min(safePage * PER_PAGE, sorted.length).toLocaleString()} /{" "}
           {sorted.length.toLocaleString()}건
@@ -119,31 +119,31 @@ export default function ExpenseTable() {
           <button
             onClick={() => setPage(1)}
             disabled={safePage === 1}
-            className="text-[9px] font-mono px-2 py-1 border border-[#1a1a1e] text-[#333] hover:border-[#2a2a2e] hover:text-[#555] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            className="text-[9px] font-mono px-2 py-1 border border-[#1a1a1e] text-[#c0bbb4] hover:border-[#2a2a2e] hover:text-[#555] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
           >
             «
           </button>
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={safePage === 1}
-            className="text-[9px] font-mono px-3 py-1 border border-[#1a1a1e] text-[#333] hover:border-[#2a2a2e] hover:text-[#555] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            className="text-[9px] font-mono px-3 py-1 border border-[#1a1a1e] text-[#c0bbb4] hover:border-[#2a2a2e] hover:text-[#555] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
           >
             PREV
           </button>
-          <span className="text-[9px] font-mono text-[#333] tabular-nums px-3">
+          <span className="text-[9px] font-mono text-[#c0bbb4] tabular-nums px-3">
             {safePage} / {totalPages}
           </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={safePage === totalPages}
-            className="text-[9px] font-mono px-3 py-1 border border-[#1a1a1e] text-[#333] hover:border-[#2a2a2e] hover:text-[#555] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            className="text-[9px] font-mono px-3 py-1 border border-[#1a1a1e] text-[#c0bbb4] hover:border-[#2a2a2e] hover:text-[#555] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
           >
             NEXT
           </button>
           <button
             onClick={() => setPage(totalPages)}
             disabled={safePage === totalPages}
-            className="text-[9px] font-mono px-2 py-1 border border-[#1a1a1e] text-[#333] hover:border-[#2a2a2e] hover:text-[#555] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            className="text-[9px] font-mono px-2 py-1 border border-[#1a1a1e] text-[#c0bbb4] hover:border-[#2a2a2e] hover:text-[#555] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
           >
             »
           </button>

@@ -52,7 +52,7 @@ export default function StatsCards() {
           <div className="text-lg font-mono text-[#e8e4dc] leading-none mb-1">
             {s.value}
           </div>
-          <div className="text-[10px] text-[#333] font-mono">{s.sub}</div>
+          <div className="text-[10px] text-[#c0bbb4] font-mono">{s.sub}</div>
         </div>
       ))}
     </div>

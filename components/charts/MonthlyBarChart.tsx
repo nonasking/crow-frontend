@@ -42,7 +42,7 @@ export default function MonthlyBarChart() {
 
   if (!data.length) {
     return (
-      <div className="flex items-center justify-center h-full text-[#333] text-xs tracking-widest">
+      <div className="flex items-center justify-center h-full text-[#c0bbb4] text-xs tracking-widest">
         데이터 없음
       </div>
     );
@@ -63,7 +63,7 @@ export default function MonthlyBarChart() {
               tickLine={false}
             />
             <YAxis
-              tick={{ fontSize: 9, fill: "#333", fontFamily: "monospace" }}
+              tick={{ fontSize: 9, fill: "#c0bbb4", fontFamily: "monospace" }}
               axisLine={false}
               tickLine={false}
               tickFormatter={formatKRW}
