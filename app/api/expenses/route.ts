@@ -8,7 +8,7 @@ export async function GET(request: Request) {
 
   try {
     const res = await fetch(
-      `${BACKEND_URL}/api/expenses/${query ? `?${query}` : ""}`,
+      `${BACKEND_URL}/expenses/${query ? `?${query}` : ""}`,
       {
         headers: { "Content-Type": "application/json" },
         // Next.js 캐시 비활성화 (항상 최신 데이터)
