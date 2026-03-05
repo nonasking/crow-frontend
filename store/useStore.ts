@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Expense, Filters, OptionItem, SortKey, SortDir, CategorySubcategoryMap } from "@/types";
+import { Expense, Filters, OptionItem, SortKey, SortDir, CategorySubcategoryMap, ExpenseUpdatePayload } from "@/types";
 
 function getFirstDayOfMonth(): string {
   const now = new Date();
@@ -85,6 +85,7 @@ type Store = {
 
   // Actions
   fetchExpenses: () => Promise<void>;
+  updateExpense: (id: number, payload: ExpenseUpdatePayload) => Promise<void>;
   fetchFilterOptions: () => Promise<void>;
   setFilter: <K extends keyof Filters>(key: K, value: Filters[K]) => void;
   resetFilters: () => void;
@@ -129,6 +130,22 @@ export const useStore = create<Store>((set, get) => ({
     } catch (e) {
       set({ loading: false, error: String(e) });
     }
+  },
+
+  updateExpense: async (id, payload) => {
+    const res = await fetch(`/api/expenses/${id}/`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      // 백엔드 validation 에러 메시지를 그대로 throw
+      throw new Error(JSON.stringify(data));
+    }
+
+    await get().fetchExpenses();
   },
 
   fetchFilterOptions: async () => {
