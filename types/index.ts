@@ -9,17 +9,14 @@ export type Expense = {
   memo: string;
 };
 
-export type DateMode = "range" | "before" | "after";
-
 export type Filters = {
-  dateFrom: string;
-  dateTo: string;
-  dateMode: DateMode;
-  categories: string[];
-  subCategories: string[];
-  paymentMethods: string[];
-  amountMin: string;
-  amountMax: string;
+  spent_at_after: string;
+  spent_at_before: string;
+  category: string[];
+  sub_category: string[];
+  payment_method: string[];
+  amount_min: string;
+  amount_max: string;
   search: string;
 };
 

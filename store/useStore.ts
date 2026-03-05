@@ -1,74 +1,105 @@
 import { create } from "zustand";
 import { Expense, Filters, SortKey, SortDir } from "@/types";
 
+function getFirstDayOfMonth(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}-01`;
+}
+
 export const DEFAULT_FILTERS: Filters = {
-  dateFrom: "",
-  dateTo: "",
-  dateMode: "range",
-  categories: [],
-  subCategories: [],
-  paymentMethods: [],
-  amountMin: "",
-  amountMax: "",
+  spent_at_after: "",
+  spent_at_before: "",
+  category: [],
+  sub_category: [],
+  payment_method: [],
+  amount_min: "",
+  amount_max: "",
   search: "",
 };
 
-function applyFilters(expenses: Expense[], f: Filters): Expense[] {
-  return expenses.filter((e) => {
-    const date = e.spent_at;
-    if (f.dateMode === "range") {
-      if (f.dateFrom && date < f.dateFrom) return false;
-      if (f.dateTo && date > f.dateTo) return false;
-    } else if (f.dateMode === "before") {
-      if (f.dateTo && date >= f.dateTo) return false;
-    } else if (f.dateMode === "after") {
-      if (f.dateFrom && date <= f.dateFrom) return false;
-    }
-    if (f.categories.length && !f.categories.includes(e.category)) return false;
-    if (f.subCategories.length && !f.subCategories.includes(e.sub_category)) return false;
-    if (f.paymentMethods.length && !f.paymentMethods.includes(e.payment_method)) return false;
-    if (f.amountMin && e.amount < Number(f.amountMin)) return false;
-    if (f.amountMax && e.amount > Number(f.amountMax)) return false;
-    if (f.search) {
-      const q = f.search.toLowerCase();
-      if (!e.item.toLowerCase().includes(q) && !e.memo.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
+// 초기 로드용 — 당월 1일 설정
+const INITIAL_FILTERS: Filters = {
+  ...DEFAULT_FILTERS,
+  spent_at_after: getFirstDayOfMonth(),
+};
+
+function buildQueryParams(
+  filters: Filters,
+  page: number,
+  pageSize: number,
+  sortKey: SortKey,
+  sortDir: SortDir
+): string {
+  const params = new URLSearchParams();
+
+  if (filters.spent_at_after) params.set("spent_at_after", filters.spent_at_after);
+  if (filters.spent_at_before) params.set("spent_at_before", filters.spent_at_before);
+
+  // BaseInFilter: 쉼표로 join해서 전송
+  if (filters.category.length) params.set("category", filters.category.join(","));
+  if (filters.sub_category.length) params.set("sub_category", filters.sub_category.join(","));
+  if (filters.payment_method.length) params.set("payment_method", filters.payment_method.join(","));
+
+  if (filters.amount_min) params.set("amount_min", filters.amount_min);
+  if (filters.amount_max) params.set("amount_max", filters.amount_max);
+  if (filters.search) params.set("search", filters.search);
+
+  params.set("page", String(page));
+  params.set("page_size", String(pageSize));
+  params.set("ordering", sortDir === "desc" ? `-${sortKey}` : sortKey);
+
+  return params.toString();
 }
+
+type PaginationMeta = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+};
 
 type Store = {
   // Data
-  allExpenses: Expense[];
-  filteredExpenses: Expense[];
+  expenses: Expense[];
+  pagination: PaginationMeta;
   loading: boolean;
   error: string | null;
 
   // Filters
   filters: Filters;
 
-  // Table sort
+  // Pagination
+  page: number;
+  pageSize: number;
+
+  // Sort
   sortKey: SortKey;
   sortDir: SortDir;
 
-  // Actions
-  fetchExpenses: () => Promise<void>;
-  setFilter: <K extends keyof Filters>(key: K, value: Filters[K]) => void;
-  resetFilters: () => void;
-  setSort: (key: SortKey) => void;
-
-  // Derived options
+  // Filter options (최초 1회 로드)
   categoryOptions: string[];
   subCategoryOptions: string[];
   paymentMethodOptions: string[];
+
+  // Actions
+  fetchExpenses: () => Promise<void>;
+  fetchFilterOptions: () => Promise<void>;
+  setFilter: <K extends keyof Filters>(key: K, value: Filters[K]) => void;
+  resetFilters: () => void;
+  setSort: (key: SortKey) => void;
+  setPage: (page: number) => void;
+  setPageSize: (size: number) => void;
 };
 
 export const useStore = create<Store>((set, get) => ({
-  allExpenses: [],
-  filteredExpenses: [],
-  loading: true,
+  expenses: [],
+  pagination: { count: 0, next: null, previous: null },
+  loading: false,
   error: null,
-  filters: DEFAULT_FILTERS,
+  filters: INITIAL_FILTERS,
+  page: 1,
+  pageSize: 20,
   sortKey: "spent_at",
   sortDir: "desc",
   categoryOptions: [],
@@ -78,43 +109,72 @@ export const useStore = create<Store>((set, get) => ({
   fetchExpenses: async () => {
     try {
       set({ loading: true, error: null });
-      const res = await fetch("/api/expenses");
+      const { filters, page, pageSize, sortKey, sortDir } = get();
+      const query = buildQueryParams(filters, page, pageSize, sortKey, sortDir);
+      const res = await fetch(`/api/expenses/?${query}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      const expenses: Expense[] = data.results ?? data;
-
-      const categoryOptions = [...new Set(expenses.map((e) => e.category))].sort();
-      const subCategoryOptions = [...new Set(expenses.map((e) => e.sub_category))].sort();
-      const paymentMethodOptions = [...new Set(expenses.map((e) => e.payment_method))].sort();
 
       set({
-        allExpenses: expenses,
-        filteredExpenses: applyFilters(expenses, get().filters),
+        expenses: data.results ?? data,
+        pagination: {
+          count: data.count ?? 0,
+          next: data.next ?? null,
+          previous: data.previous ?? null,
+        },
         loading: false,
-        categoryOptions,
-        subCategoryOptions,
-        paymentMethodOptions,
       });
     } catch (e) {
       set({ loading: false, error: String(e) });
     }
   },
 
+  // 필터 드롭다운 옵션용: page_size=1로 count만 확인 후 전체 옵션 fetch
+  // 백엔드에 /api/expenses/options/ 전용 엔드포인트가 생기면 교체 권장
+  fetchFilterOptions: async () => {
+    try {
+      const res = await fetch("/api/expenses/?page_size=100&ordering=category");
+      if (!res.ok) return;
+      const data = await res.json();
+      const all: Expense[] = data.results ?? data;
+
+      set({
+        categoryOptions: [...new Set(all.map((e) => e.category))].sort(),
+        subCategoryOptions: [...new Set(all.map((e) => e.sub_category))].sort(),
+        paymentMethodOptions: [...new Set(all.map((e) => e.payment_method))].sort(),
+      });
+    } catch {
+      // 옵션 로드 실패는 무시
+    }
+  },
+
   setFilter: (key, value) => {
-    const filters = { ...get().filters, [key]: value };
-    set({ filters, filteredExpenses: applyFilters(get().allExpenses, filters) });
+    set((state) => ({
+      filters: { ...state.filters, [key]: value },
+      page: 1, // 필터 변경 시 첫 페이지로
+    }));
+    get().fetchExpenses();
   },
 
   resetFilters: () => {
-    set({
-      filters: DEFAULT_FILTERS,
-      filteredExpenses: get().allExpenses,
-    });
+    set({ filters: DEFAULT_FILTERS, page: 1 });
+    get().fetchExpenses();
   },
 
   setSort: (key) => {
-    const prev = get().sortKey;
-    const dir = prev === key ? (get().sortDir === "asc" ? "desc" : "asc") : "asc";
-    set({ sortKey: key, sortDir: dir });
+    const { sortKey, sortDir } = get();
+    const dir = sortKey === key ? (sortDir === "asc" ? "desc" : "asc") : "asc";
+    set({ sortKey: key, sortDir: dir, page: 1 });
+    get().fetchExpenses();
+  },
+
+  setPage: (page) => {
+    set({ page });
+    get().fetchExpenses();
+  },
+
+  setPageSize: (size) => {
+    set({ pageSize: size, page: 1 });
+    get().fetchExpenses();
   },
 }));
