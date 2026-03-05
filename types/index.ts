@@ -30,3 +30,14 @@ export type OptionItem = {
 
 export type CategorySubcategoryMap = Record<string, string[]>;
 
+export type ExpenseUpdatePayload = {
+  spent_at?: string;
+  category?: string;
+  sub_category?: string;
+  item?: string;
+  payment_method?: string;
+  amount?: number;
+  memo?: string;
+};
+
+
