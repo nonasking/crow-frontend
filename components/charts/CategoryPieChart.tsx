@@ -40,14 +40,12 @@ const CustomLegend = ({ payload }: any) => (
 );
 
 export default function CategoryPieChart() {
-  const { filteredExpenses, allExpenses } = useStore();
+  const { expenses } = useStore();
 
-  // Aggregate filtered by category
-  const totalAll = allExpenses.reduce((s, e) => s + e.amount, 0);
-  const totalFiltered = filteredExpenses.reduce((s, e) => s + e.amount, 0);
+  const total = expenses.reduce((s, e) => s + e.amount, 0);
 
   const map = new Map<string, number>();
-  for (const e of filteredExpenses) {
+  for (const e of expenses) {
     map.set(e.category, (map.get(e.category) ?? 0) + e.amount);
   }
 
@@ -55,7 +53,7 @@ export default function CategoryPieChart() {
     .map(([name, value]) => ({
       name,
       value,
-      pct: totalAll > 0 ? (value / totalAll) * 100 : 0,
+      pct: total > 0 ? (value / total) * 100 : 0,
     }))
     .sort((a, b) => b.value - a.value);
 
@@ -67,17 +65,14 @@ export default function CategoryPieChart() {
     );
   }
 
-  const filteredPct = totalAll > 0 ? ((totalFiltered / totalAll) * 100).toFixed(1) : "0";
-
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-[10px] tracking-widest uppercase text-[#444] font-mono">
           대분류별 지출
         </h2>
-        <span className="text-[10px] font-mono text-[#555]">
-          전체의{" "}
-          <span className="text-[#c9a96e]">{filteredPct}%</span>
+        <span className="text-[10px] font-mono text-[#555] tabular-nums">
+          {expenses.length}건
         </span>
       </div>
 
@@ -104,7 +99,6 @@ export default function CategoryPieChart() {
         </ResponsiveContainer>
       </div>
 
-      {/* Center label overlay is handled by recharts innerRadius; add summary below */}
       <div className="mt-2 space-y-1">
         {data.slice(0, 5).map((d, i) => (
           <div key={i} className="flex items-center gap-2 text-[10px] font-mono">
