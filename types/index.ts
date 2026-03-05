@@ -22,3 +22,8 @@ export type Filters = {
 
 export type SortKey = keyof Expense;
 export type SortDir = "asc" | "desc";
+
+export type OptionItem = {
+  value: string;
+  label: string;
+};

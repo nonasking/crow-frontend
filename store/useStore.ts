@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Expense, Filters, SortKey, SortDir } from "@/types";
+import { Expense, Filters, OptionItem, SortKey, SortDir } from "@/types";
 
 function getFirstDayOfMonth(): string {
   const now = new Date();
@@ -78,9 +78,9 @@ type Store = {
   sortDir: SortDir;
 
   // Filter options (최초 1회 로드)
-  categoryOptions: string[];
-  subCategoryOptions: string[];
-  paymentMethodOptions: string[];
+  categoryOptions: OptionItem[];
+  subCategoryOptions: OptionItem[];
+  paymentMethodOptions: OptionItem[];
 
   // Actions
   fetchExpenses: () => Promise<void>;
@@ -129,23 +129,17 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-  // 필터 드롭다운 옵션용: page_size=1로 count만 확인 후 전체 옵션 fetch
-  // 백엔드에 /api/expenses/options/ 전용 엔드포인트가 생기면 교체 권장
   fetchFilterOptions: async () => {
     try {
-      const res = await fetch("/api/expenses/");
+      const res = await fetch("/api/expenses/options/");
       if (!res.ok) return;
       const data = await res.json();
-      const all: Expense[] = data.results ?? data;
-
       set({
-        categoryOptions: [...new Set(all.map((e) => e.category))].sort(),
-        subCategoryOptions: [...new Set(all.map((e) => e.sub_category))].sort(),
-        paymentMethodOptions: [...new Set(all.map((e) => e.payment_method))].sort(),
+        categoryOptions: data.categories,
+        subCategoryOptions: data.sub_categories,
+        paymentMethodOptions: data.payment_methods,
       });
-    } catch {
-      // 옵션 로드 실패는 무시
-    }
+    } catch {}
   },
 
   setFilter: (key, value) => {

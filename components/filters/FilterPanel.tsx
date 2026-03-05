@@ -1,7 +1,6 @@
 "use client";
 
 import { useStore } from "@/store/useStore";
-import { Filters } from "@/types";
 
 function Chip({
   label,
@@ -108,12 +107,12 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
         {/* Categories */}
         <Section title="대분류" />
         <div className="flex flex-wrap gap-1.5">
-          {categoryOptions.map((c) => (
+          {categoryOptions.map((opt) => (
             <Chip
-              key={c}
-              label={c}
-              active={filters.category.includes(c)}
-              onClick={() => toggleMulti("category", c)}
+              key={opt.value}
+              label={opt.label}
+              active={filters.category.includes(opt.value)}
+              onClick={() => toggleMulti("category", opt.value)}
             />
           ))}
         </div>
@@ -121,12 +120,12 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
         {/* Sub Categories */}
         <Section title="소분류" />
         <div className="flex flex-wrap gap-1.5">
-          {subCategoryOptions.map((c) => (
+          {subCategoryOptions.map((opt) => (
             <Chip
-              key={c}
-              label={c}
-              active={filters.sub_category.includes(c)}
-              onClick={() => toggleMulti("sub_category", c)}
+              key={opt.value}
+              label={opt.label}
+              active={filters.sub_category.includes(opt.value)}
+              onClick={() => toggleMulti("sub_category", opt.value)}
             />
           ))}
         </div>
@@ -134,12 +133,12 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
         {/* Payment methods */}
         <Section title="결제방식" />
         <div className="flex flex-wrap gap-1.5">
-          {paymentMethodOptions.map((p) => (
+          {paymentMethodOptions.map((opt) => (
             <Chip
-              key={p}
-              label={p}
-              active={filters.payment_method.includes(p)}
-              onClick={() => toggleMulti("payment_method", p)}
+              key={opt.value}
+              label={opt.label}
+              active={filters.payment_method.includes(opt.value)}
+              onClick={() => toggleMulti("payment_method", opt.value)}
             />
           ))}
         </div>
