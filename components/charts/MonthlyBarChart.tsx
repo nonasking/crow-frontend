@@ -23,10 +23,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function MonthlyBarChart() {
-  const { filteredExpenses } = useStore();
+  const { expenses } = useStore();
 
   const map = new Map<string, number>();
-  for (const e of filteredExpenses) {
+  for (const e of expenses) {
     const month = e.spent_at.slice(0, 7); // "YYYY-MM"
     map.set(month, (map.get(month) ?? 0) + e.amount);
   }
