@@ -1,7 +1,7 @@
 "use client";
 
 import { useStore } from "@/store/useStore";
-import { DateMode, Filters } from "@/types";
+import { Filters } from "@/types";
 
 function Chip({
   label,
@@ -35,20 +35,29 @@ function Section({ title }: { title: string }) {
 }
 
 export default function FilterPanel({ onClose }: { onClose?: () => void }) {
-  const { filters, setFilter, resetFilters, categoryOptions, subCategoryOptions, paymentMethodOptions } =
-    useStore();
+  const {
+    filters,
+    setFilter,
+    resetFilters,
+    categoryOptions,
+    subCategoryOptions,
+    paymentMethodOptions,
+  } = useStore();
 
-  const toggleMulti = (key: "categories" | "subCategories" | "paymentMethods", val: string) => {
+  const toggleMulti = (
+    key: "category" | "sub_category" | "payment_method",
+    val: string
+  ) => {
     const curr = filters[key];
     setFilter(key, curr.includes(val) ? curr.filter((v) => v !== val) : [...curr, val]);
   };
 
   const activeCount = [
-    filters.dateFrom || filters.dateTo,
-    filters.categories.length,
-    filters.subCategories.length,
-    filters.paymentMethods.length,
-    filters.amountMin || filters.amountMax,
+    filters.spent_at_after || filters.spent_at_before,
+    filters.category.length,
+    filters.sub_category.length,
+    filters.payment_method.length,
+    filters.amount_min || filters.amount_max,
     filters.search,
   ].filter(Boolean).length;
 
@@ -75,48 +84,26 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
       <div className="flex-1 overflow-y-auto px-5 py-2 space-y-0.5">
         {/* Date */}
         <Section title="날짜" />
-        <div className="flex gap-1 mb-3">
-          {(["range", "before", "after"] as DateMode[]).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setFilter("dateMode", mode)}
-              className={`flex-1 text-[9px] py-1 border font-mono transition-all ${
-                filters.dateMode === mode
-                  ? "border-[#c9a96e] text-[#c9a96e]"
-                  : "border-[#222] text-[#444] hover:border-[#c0bbb4]"
-              }`}
-            >
-              {mode === "range" ? "기간" : mode === "before" ? "이전" : "이후"}
-            </button>
-          ))}
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="text-[9px] text-[#c0bbb4] font-mono block mb-1">시작일</label>
+            <input
+              type="date"
+              value={filters.spent_at_after}
+              onChange={(e) => setFilter("spent_at_after", e.target.value)}
+              className="w-full bg-transparent border border-[#222] text-[#888] text-[10px] px-2 py-1.5 font-mono focus:outline-none focus:border-[#444]"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="text-[9px] text-[#c0bbb4] font-mono block mb-1">종료일</label>
+            <input
+              type="date"
+              value={filters.spent_at_before}
+              onChange={(e) => setFilter("spent_at_before", e.target.value)}
+              className="w-full bg-transparent border border-[#222] text-[#888] text-[10px] px-2 py-1.5 font-mono focus:outline-none focus:border-[#444]"
+            />
+          </div>
         </div>
-
-        {filters.dateMode !== "after" && (
-          <div className="mb-2">
-            <label className="text-[9px] text-[#c0bbb4] font-mono block mb-1">
-              {filters.dateMode === "before" ? "기준일 (미만)" : "시작일"}
-            </label>
-            <input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => setFilter("dateTo", e.target.value)}
-              className="w-full bg-transparent border border-[#222] text-[#888] text-[10px] px-2 py-1.5 font-mono focus:outline-none focus:border-[#444]"
-            />
-          </div>
-        )}
-        {filters.dateMode !== "before" && (
-          <div className="mb-2">
-            <label className="text-[9px] text-[#c0bbb4] font-mono block mb-1">
-              {filters.dateMode === "after" ? "기준일 (초과)" : "종료일"}
-            </label>
-            <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => setFilter("dateFrom", e.target.value)}
-              className="w-full bg-transparent border border-[#222] text-[#888] text-[10px] px-2 py-1.5 font-mono focus:outline-none focus:border-[#444]"
-            />
-          </div>
-        )}
 
         {/* Categories */}
         <Section title="대분류" />
@@ -125,8 +112,8 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
             <Chip
               key={c}
               label={c}
-              active={filters.categories.includes(c)}
-              onClick={() => toggleMulti("categories", c)}
+              active={filters.category.includes(c)}
+              onClick={() => toggleMulti("category", c)}
             />
           ))}
         </div>
@@ -138,8 +125,8 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
             <Chip
               key={c}
               label={c}
-              active={filters.subCategories.includes(c)}
-              onClick={() => toggleMulti("subCategories", c)}
+              active={filters.sub_category.includes(c)}
+              onClick={() => toggleMulti("sub_category", c)}
             />
           ))}
         </div>
@@ -151,8 +138,8 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
             <Chip
               key={p}
               label={p}
-              active={filters.paymentMethods.includes(p)}
-              onClick={() => toggleMulti("paymentMethods", p)}
+              active={filters.payment_method.includes(p)}
+              onClick={() => toggleMulti("payment_method", p)}
             />
           ))}
         </div>
@@ -163,15 +150,15 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
           <input
             type="number"
             placeholder="최소"
-            value={filters.amountMin}
-            onChange={(e) => setFilter("amountMin", e.target.value)}
+            value={filters.amount_min}
+            onChange={(e) => setFilter("amount_min", e.target.value)}
             className="w-full bg-transparent border border-[#222] text-[#888] text-[10px] px-2 py-1.5 font-mono focus:outline-none focus:border-[#444] placeholder-[#2a2a2e]"
           />
           <input
             type="number"
             placeholder="최대"
-            value={filters.amountMax}
-            onChange={(e) => setFilter("amountMax", e.target.value)}
+            value={filters.amount_max}
+            onChange={(e) => setFilter("amount_max", e.target.value)}
             className="w-full bg-transparent border border-[#222] text-[#888] text-[10px] px-2 py-1.5 font-mono focus:outline-none focus:border-[#444] placeholder-[#2a2a2e]"
           />
         </div>
