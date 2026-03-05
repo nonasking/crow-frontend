@@ -14,7 +14,13 @@ const COLUMNS: { key: SortKey; label: string; align?: "right" }[] = [
 ];
 
 export default function ExpenseTable() {
-  const { expenses, pagination, page, pageSize, sortKey, sortDir, setSort, setPage } = useStore();
+  const { expenses, pagination, page, pageSize, sortKey, sortDir, setSort, setPage, categoryOptions, subCategoryOptions } = useStore();
+
+  const categoryLabel = (value: string) =>
+  categoryOptions.find((o) => o.value === value)?.label ?? value;
+
+  const subCategoryLabel = (value: string) =>
+    subCategoryOptions.find((o) => o.value === value)?.label ?? value;
 
   const totalPages = Math.max(1, Math.ceil(pagination.count / pageSize));
   const rangeStart = ((page - 1) * pageSize + 1).toLocaleString();
@@ -67,10 +73,12 @@ export default function ExpenseTable() {
                   </td>
                   <td className="px-4 py-2.5">
                     <span className="font-mono text-[10px] text-[#666] border border-[#222] px-1.5 py-0.5">
-                      {e.category}
+                      {categoryLabel(e.category)}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 font-mono text-[#444]">{e.sub_category}</td>
+                  <td className="px-4 py-2.5 font-mono text-[#444]">
+                    {subCategoryLabel(e.sub_category)}
+                  </td>
                   <td className="px-4 py-2.5 font-mono text-[#e0ddd8] group-hover:text-[#e8e4dc] transition-colors">
                     {e.item}
                   </td>

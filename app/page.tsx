@@ -9,13 +9,14 @@ import CategoryPieChart from "@/components/charts/CategoryPieChart";
 import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
 
 export default function Home() {
-  const { fetchExpenses, loading, error } = useStore();
+  const { fetchExpenses, fetchFilterOptions, loading, error } = useStore();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [view, setView] = useState<"table" | "charts">("table");
 
   useEffect(() => {
     fetchExpenses();
-  }, [fetchExpenses]);
+    fetchFilterOptions(); // ← 추가
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0e0e10] text-[#e8e4dc] flex flex-col">

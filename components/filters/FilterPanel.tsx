@@ -1,7 +1,6 @@
 "use client";
 
 import { useStore } from "@/store/useStore";
-import { Filters } from "@/types";
 
 function Chip({
   label,
@@ -42,15 +41,40 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
     categoryOptions,
     subCategoryOptions,
     paymentMethodOptions,
+    categorySubcategoryMap,
   } = useStore();
 
   const toggleMulti = (
-    key: "category" | "sub_category" | "payment_method",
+    key: "sub_category" | "payment_method",
     val: string
   ) => {
     const curr = filters[key];
     setFilter(key, curr.includes(val) ? curr.filter((v) => v !== val) : [...curr, val]);
   };
+
+  const toggleCategory = (val: string) => {
+    const curr = filters.category;
+    const next = curr.includes(val) ? curr.filter((v) => v !== val) : [...curr, val];
+
+    // 새 카테고리 선택 기준으로 유효한 서브카테고리만 유지
+    const validSubs = next.length
+      ? filters.sub_category.filter((sub) =>
+          next.some((cat) => categorySubcategoryMap[cat]?.includes(sub))
+        )
+      : filters.sub_category;
+
+    setFilter("category", next);
+    setFilter("sub_category", validSubs);
+  };
+
+  // 선택된 카테고리가 있으면 해당 서브카테고리만, 없으면 전체 표시
+  const visibleSubCategories = filters.category.length
+    ? subCategoryOptions.filter((opt) =>
+        filters.category.some((cat) =>
+          categorySubcategoryMap[cat]?.includes(opt.value)
+        )
+      )
+    : subCategoryOptions;
 
   const activeCount = [
     filters.spent_at_after || filters.spent_at_before,
@@ -108,12 +132,12 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
         {/* Categories */}
         <Section title="대분류" />
         <div className="flex flex-wrap gap-1.5">
-          {categoryOptions.map((c) => (
+          {categoryOptions.map((opt) => (
             <Chip
-              key={c}
-              label={c}
-              active={filters.category.includes(c)}
-              onClick={() => toggleMulti("category", c)}
+              key={opt.value}
+              label={opt.label}
+              active={filters.category.includes(opt.value)}
+              onClick={() => toggleCategory(opt.value)}  // toggleMulti → toggleCategory
             />
           ))}
         </div>
@@ -121,12 +145,12 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
         {/* Sub Categories */}
         <Section title="소분류" />
         <div className="flex flex-wrap gap-1.5">
-          {subCategoryOptions.map((c) => (
+          {visibleSubCategories.map((opt) => (  // subCategoryOptions → visibleSubCategories
             <Chip
-              key={c}
-              label={c}
-              active={filters.sub_category.includes(c)}
-              onClick={() => toggleMulti("sub_category", c)}
+              key={opt.value}
+              label={opt.label}
+              active={filters.sub_category.includes(opt.value)}
+              onClick={() => toggleMulti("sub_category", opt.value)}
             />
           ))}
         </div>
@@ -134,12 +158,12 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
         {/* Payment methods */}
         <Section title="결제방식" />
         <div className="flex flex-wrap gap-1.5">
-          {paymentMethodOptions.map((p) => (
+          {paymentMethodOptions.map((opt) => (
             <Chip
-              key={p}
-              label={p}
-              active={filters.payment_method.includes(p)}
-              onClick={() => toggleMulti("payment_method", p)}
+              key={opt.value}
+              label={opt.label}
+              active={filters.payment_method.includes(opt.value)}
+              onClick={() => toggleMulti("payment_method", opt.value)}
             />
           ))}
         </div>
