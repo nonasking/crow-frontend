@@ -1,6 +1,13 @@
 import { create } from "zustand";
 import { Expense, Filters, SortKey, SortDir } from "@/types";
 
+function getFirstDayOfMonth(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}-01`;
+}
+
 export const DEFAULT_FILTERS: Filters = {
   spent_at_after: "",
   spent_at_before: "",
@@ -10,6 +17,12 @@ export const DEFAULT_FILTERS: Filters = {
   amount_min: "",
   amount_max: "",
   search: "",
+};
+
+// 초기 로드용 — 당월 1일 설정
+const INITIAL_FILTERS: Filters = {
+  ...DEFAULT_FILTERS,
+  spent_at_after: getFirstDayOfMonth(),
 };
 
 function buildQueryParams(
@@ -84,7 +97,7 @@ export const useStore = create<Store>((set, get) => ({
   pagination: { count: 0, next: null, previous: null },
   loading: false,
   error: null,
-  filters: DEFAULT_FILTERS,
+  filters: INITIAL_FILTERS,
   page: 1,
   pageSize: 20,
   sortKey: "spent_at",
