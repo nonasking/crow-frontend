@@ -27,3 +27,6 @@ export type OptionItem = {
   value: string;
   label: string;
 };
+
+export type CategorySubcategoryMap = Record<string, string[]>;
+

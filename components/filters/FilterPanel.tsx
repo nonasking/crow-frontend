@@ -41,15 +41,40 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
     categoryOptions,
     subCategoryOptions,
     paymentMethodOptions,
+    categorySubcategoryMap,
   } = useStore();
 
   const toggleMulti = (
-    key: "category" | "sub_category" | "payment_method",
+    key: "sub_category" | "payment_method",
     val: string
   ) => {
     const curr = filters[key];
     setFilter(key, curr.includes(val) ? curr.filter((v) => v !== val) : [...curr, val]);
   };
+
+  const toggleCategory = (val: string) => {
+    const curr = filters.category;
+    const next = curr.includes(val) ? curr.filter((v) => v !== val) : [...curr, val];
+
+    // 새 카테고리 선택 기준으로 유효한 서브카테고리만 유지
+    const validSubs = next.length
+      ? filters.sub_category.filter((sub) =>
+          next.some((cat) => categorySubcategoryMap[cat]?.includes(sub))
+        )
+      : filters.sub_category;
+
+    setFilter("category", next);
+    setFilter("sub_category", validSubs);
+  };
+
+  // 선택된 카테고리가 있으면 해당 서브카테고리만, 없으면 전체 표시
+  const visibleSubCategories = filters.category.length
+    ? subCategoryOptions.filter((opt) =>
+        filters.category.some((cat) =>
+          categorySubcategoryMap[cat]?.includes(opt.value)
+        )
+      )
+    : subCategoryOptions;
 
   const activeCount = [
     filters.spent_at_after || filters.spent_at_before,
@@ -112,7 +137,7 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
               key={opt.value}
               label={opt.label}
               active={filters.category.includes(opt.value)}
-              onClick={() => toggleMulti("category", opt.value)}
+              onClick={() => toggleCategory(opt.value)}  // toggleMulti → toggleCategory
             />
           ))}
         </div>
@@ -120,7 +145,7 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
         {/* Sub Categories */}
         <Section title="소분류" />
         <div className="flex flex-wrap gap-1.5">
-          {subCategoryOptions.map((opt) => (
+          {visibleSubCategories.map((opt) => (  // subCategoryOptions → visibleSubCategories
             <Chip
               key={opt.value}
               label={opt.label}

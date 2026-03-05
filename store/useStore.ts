@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Expense, Filters, OptionItem, SortKey, SortDir } from "@/types";
+import { Expense, Filters, OptionItem, SortKey, SortDir, CategorySubcategoryMap } from "@/types";
 
 function getFirstDayOfMonth(): string {
   const now = new Date();
@@ -81,6 +81,7 @@ type Store = {
   categoryOptions: OptionItem[];
   subCategoryOptions: OptionItem[];
   paymentMethodOptions: OptionItem[];
+  categorySubcategoryMap: CategorySubcategoryMap;
 
   // Actions
   fetchExpenses: () => Promise<void>;
@@ -105,6 +106,7 @@ export const useStore = create<Store>((set, get) => ({
   categoryOptions: [],
   subCategoryOptions: [],
   paymentMethodOptions: [],
+  categorySubcategoryMap: {},
 
   fetchExpenses: async () => {
     try {
@@ -138,6 +140,7 @@ export const useStore = create<Store>((set, get) => ({
         categoryOptions: data.categories,
         subCategoryOptions: data.sub_categories,
         paymentMethodOptions: data.payment_methods,
+        categorySubcategoryMap: data.category_subcategory_map,
       });
     } catch {}
   },
