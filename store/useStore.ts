@@ -133,7 +133,7 @@ export const useStore = create<Store>((set, get) => ({
   // 백엔드에 /api/expenses/options/ 전용 엔드포인트가 생기면 교체 권장
   fetchFilterOptions: async () => {
     try {
-      const res = await fetch("/api/expenses/?page_size=100&ordering=category");
+      const res = await fetch("/api/expenses/");
       if (!res.ok) return;
       const data = await res.json();
       const all: Expense[] = data.results ?? data;
