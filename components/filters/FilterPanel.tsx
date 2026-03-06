@@ -67,14 +67,13 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
     setFilter("sub_category", validSubs);
   };
 
-  // 선택된 카테고리가 있으면 해당 서브카테고리만, 없으면 전체 표시
   const visibleSubCategories = filters.category.length
-    ? subCategoryOptions.filter((opt) =>
-        filters.category.some((cat) =>
-          categorySubcategoryMap[cat]?.includes(opt.value)
-        )
+  ? subCategoryOptions.filter((opt) =>
+      filters.category.some((cat) =>
+        categorySubcategoryMap[cat]?.includes(opt.value)
       )
-    : subCategoryOptions;
+    )
+  : []; // ← 대분류 미선택 시 빈 배열
 
   const activeCount = [
     filters.spent_at_after || filters.spent_at_before,
@@ -145,14 +144,20 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
         {/* Sub Categories */}
         <Section title="소분류" />
         <div className="flex flex-wrap gap-1.5">
-          {visibleSubCategories.map((opt) => (  // subCategoryOptions → visibleSubCategories
-            <Chip
-              key={opt.value}
-              label={opt.label}
-              active={filters.sub_category.includes(opt.value)}
-              onClick={() => toggleMulti("sub_category", opt.value)}
-            />
-          ))}
+          {visibleSubCategories.length === 0 ? (
+            <span className="text-[9px] text-[#2a2a2e] font-mono">
+              대분류를 먼저 선택하세요
+            </span>
+          ) : (
+            visibleSubCategories.map((opt) => (
+              <Chip
+                key={opt.value}
+                label={opt.label}
+                active={filters.sub_category.includes(opt.value)}
+                onClick={() => toggleMulti("sub_category", opt.value)}
+              />
+            ))
+          )}
         </div>
 
         {/* Payment methods */}

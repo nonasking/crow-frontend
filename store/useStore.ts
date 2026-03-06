@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Expense, Filters, OptionItem, SortKey, SortDir, CategorySubcategoryMap, ExpenseUpdatePayload, BudgetSummary } from "@/types";
+import { Expense, Filters, OptionItem, SortKey, SortDir, CategorySubcategoryMap, ExpenseCreatePayload, ExpenseUpdatePayload, BudgetSummary } from "@/types";
 
 function getFirstDayOfMonth(): string {
   const now = new Date();
@@ -85,7 +85,9 @@ type Store = {
 
   // Actions
   fetchExpenses: () => Promise<void>;
+  createExpense: (payload: ExpenseCreatePayload) => Promise<void>;
   updateExpense: (id: number, payload: ExpenseUpdatePayload) => Promise<void>;
+  deleteExpenses: (ids: number[]) => Promise<void>;
   fetchFilterOptions: () => Promise<void>;
   setFilter: <K extends keyof Filters>(key: K, value: Filters[K]) => void;
   resetFilters: () => void;
@@ -137,6 +139,21 @@ export const useStore = create<Store>((set, get) => ({
     } catch {}
   },
 
+  createExpense: async (payload) => {
+    const res = await fetch("/api/expenses/expenses/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(JSON.stringify(data));
+    }
+
+    await get().fetchExpenses();
+  },
+
   fetchExpenses: async () => {
     try {
       set({ loading: true, error: null });
@@ -174,6 +191,15 @@ export const useStore = create<Store>((set, get) => ({
       throw new Error(JSON.stringify(data));
     }
 
+    await get().fetchExpenses();
+  },
+
+  deleteExpenses: async (ids) => {
+    await Promise.all(
+      ids.map((id) =>
+        fetch(`/api/expenses/expenses/${id}/`, { method: "DELETE" })
+      )
+    );
     await get().fetchExpenses();
   },
 
