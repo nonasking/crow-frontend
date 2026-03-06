@@ -25,10 +25,11 @@ async function handler(
     });
 
     if (!res.ok) {
-      return NextResponse.json(
-        { error: `Backend error: ${res.status}` },
-        { status: res.status }
-      );
+      // Django 에러 응답 본문을 그대로 전달
+      const errorBody = await res.json().catch(() => ({
+        error: `Backend error: ${res.status}`,
+      }));
+      return NextResponse.json(errorBody, { status: res.status });
     }
 
     const data = await res.json();
