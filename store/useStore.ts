@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Expense, Filters, OptionItem, SortKey, SortDir, CategorySubcategoryMap, ExpenseUpdatePayload } from "@/types";
+import { Expense, Filters, OptionItem, SortKey, SortDir, CategorySubcategoryMap, ExpenseUpdatePayload, BudgetSummary } from "@/types";
 
 function getFirstDayOfMonth(): string {
   const now = new Date();
@@ -92,6 +92,9 @@ type Store = {
   setSort: (key: SortKey) => void;
   setPage: (page: number) => void;
   setPageSize: (size: number) => void;
+
+  budgetSummary: BudgetSummary | null;
+  fetchBudgetSummary: () => Promise<void>;
 };
 
 export const useStore = create<Store>((set, get) => ({
@@ -108,6 +111,31 @@ export const useStore = create<Store>((set, get) => ({
   subCategoryOptions: [],
   paymentMethodOptions: [],
   categorySubcategoryMap: {},
+  budgetSummary: null,
+
+  fetchBudgetSummary: async () => {
+    try {
+      const { filters } = get();
+      const params = new URLSearchParams();
+
+      // 필터의 날짜 기준으로 year/month 추출 (없으면 오늘)
+      const baseDate = filters.spent_at_after
+        ? new Date(filters.spent_at_after)
+        : new Date();
+      params.set("year", String(baseDate.getFullYear()));
+      params.set("month", String(baseDate.getMonth() + 1));
+
+      // 카테고리 필터 연동
+      if (filters.category.length) {
+        params.set("category", filters.category.join(","));
+      }
+
+      const res = await fetch(`/api/expenses/budget/summary/?${params.toString()}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      set({ budgetSummary: data });
+    } catch {}
+  },
 
   fetchExpenses: async () => {
     try {
@@ -127,6 +155,7 @@ export const useStore = create<Store>((set, get) => ({
         },
         loading: false,
       });
+      get().fetchBudgetSummary();
     } catch (e) {
       set({ loading: false, error: String(e) });
     }
