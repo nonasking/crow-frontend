@@ -46,3 +46,12 @@ export type BudgetSummary = {
   total_budget: number;
 };
 
+export type ExpenseCreatePayload = {
+  spent_at: string;
+  category: string;
+  sub_category: string;
+  item: string;
+  payment_method: string;
+  amount: number;
+  memo: string;
+};

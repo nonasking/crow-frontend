@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useStore } from "@/store/useStore";
 import { Expense, SortKey } from "@/types";
 import EditExpenseModal from "@/components/table/EditExpenseModal";
+import ExpenseFormModal from "@/components/table/ExpenseFormModal";
 
 const COLUMNS: { key: SortKey; label: string; align?: "right" }[] = [
   { key: "spent_at", label: "날짜" },
@@ -30,6 +31,7 @@ export default function ExpenseTable() {
   } = useStore();
 
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const categoryLabel = (value: string) =>
     categoryOptions.find((o) => o.value === value)?.label ?? value;
@@ -44,6 +46,16 @@ export default function ExpenseTable() {
   return (
     <>
       <div className="flex flex-col h-full">
+        {/* 추가 버튼 — table 밖 */}
+        <div className="flex justify-end px-4 py-2 border-b border-[#1a1a1e] flex-shrink-0">
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="text-[9px] font-mono px-3 py-1.5 border border-[#c9a96e40] text-[#c9a96e] hover:bg-[#c9a96e10] tracking-widest uppercase transition-colors"
+          >
+            + 추가
+          </button>
+        </div>
+
         <div className="overflow-auto flex-1">
           <table className="w-full text-xs border-collapse min-w-[800px]">
             <thead className="sticky top-0 bg-[#0e0e10] z-10">
@@ -163,6 +175,13 @@ export default function ExpenseTable() {
         <EditExpenseModal
           expense={editingExpense}
           onClose={() => setEditingExpense(null)}
+        />
+      )}
+
+      {showCreateModal && (
+        <ExpenseFormModal
+          mode="create"
+          onClose={() => setShowCreateModal(false)}
         />
       )}
     </>

@@ -85,6 +85,7 @@ type Store = {
 
   // Actions
   fetchExpenses: () => Promise<void>;
+  createExpense: (payload: ExpenseCreatePayload) => Promise<void>;
   updateExpense: (id: number, payload: ExpenseUpdatePayload) => Promise<void>;
   fetchFilterOptions: () => Promise<void>;
   setFilter: <K extends keyof Filters>(key: K, value: Filters[K]) => void;
@@ -135,6 +136,21 @@ export const useStore = create<Store>((set, get) => ({
       const data = await res.json();
       set({ budgetSummary: data });
     } catch {}
+  },
+
+  createExpense: async (payload) => {
+    const res = await fetch("/api/expenses/expenses/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(JSON.stringify(data));
+    }
+
+    await get().fetchExpenses();
   },
 
   fetchExpenses: async () => {
