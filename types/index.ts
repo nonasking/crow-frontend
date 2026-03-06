@@ -40,4 +40,9 @@ export type ExpenseUpdatePayload = {
   memo?: string;
 };
 
+export type BudgetSummary = {
+  year: number;
+  month: number;
+  total_budget: number;
+};
 
