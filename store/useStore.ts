@@ -87,6 +87,7 @@ type Store = {
   fetchExpenses: () => Promise<void>;
   createExpense: (payload: ExpenseCreatePayload) => Promise<void>;
   updateExpense: (id: number, payload: ExpenseUpdatePayload) => Promise<void>;
+  deleteExpenses: (ids: number[]) => Promise<void>;
   fetchFilterOptions: () => Promise<void>;
   setFilter: <K extends keyof Filters>(key: K, value: Filters[K]) => void;
   resetFilters: () => void;
@@ -190,6 +191,15 @@ export const useStore = create<Store>((set, get) => ({
       throw new Error(JSON.stringify(data));
     }
 
+    await get().fetchExpenses();
+  },
+
+  deleteExpenses: async (ids) => {
+    await Promise.all(
+      ids.map((id) =>
+        fetch(`/api/expenses/expenses/${id}/`, { method: "DELETE" })
+      )
+    );
     await get().fetchExpenses();
   },
 

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useStore } from "@/store/useStore";
-import { Expense, SortKey } from "@/types";
+import { Expense, ExpenseCreatePayload, SortKey } from "@/types";
 import EditExpenseModal from "@/components/table/EditExpenseModal";
 import ExpenseFormModal from "@/components/table/ExpenseFormModal";
+import DeleteToast from "@/components/table/DeleteToast";
 
 const COLUMNS: { key: SortKey; label: string; align?: "right" }[] = [
   { key: "spent_at", label: "날짜" },
@@ -28,14 +29,17 @@ export default function ExpenseTable() {
     setPage,
     categoryOptions,
     subCategoryOptions,
+    deleteExpenses,
+    createExpense,
   } = useStore();
 
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deletedExpenses, setDeletedExpenses] = useState<Expense[] | null>(null);
 
   const categoryLabel = (value: string) =>
     categoryOptions.find((o) => o.value === value)?.label ?? value;
-
   const subCategoryLabel = (value: string) =>
     subCategoryOptions.find((o) => o.value === value)?.label ?? value;
 
@@ -43,10 +47,38 @@ export default function ExpenseTable() {
   const rangeStart = ((page - 1) * pageSize + 1).toLocaleString();
   const rangeEnd = Math.min(page * pageSize, pagination.count).toLocaleString();
 
+  const toggleSelect = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === expenses.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(expenses.map((e) => e.id)));
+    }
+  };
+
+  const handleDelete = async () => {
+    await deleteExpenses(Array.from(selectedIds));
+  };
+
+  const handleDismiss = () => {
+    setSelectedIds(new Set());
+    setDeletedExpenses(null);
+  };
+
+  const showToast = selectedIds.size > 0;
+
   return (
     <>
       <div className="flex flex-col h-full">
-        {/* 추가 버튼 — table 밖 */}
+        {/* 추가 버튼 */}
         <div className="flex justify-end px-4 py-2 border-b border-[#1a1a1e] flex-shrink-0">
           <button
             onClick={() => setShowCreateModal(true)}
@@ -60,6 +92,21 @@ export default function ExpenseTable() {
           <table className="w-full text-xs border-collapse min-w-[800px]">
             <thead className="sticky top-0 bg-[#0e0e10] z-10">
               <tr>
+                {/* 전체 선택 체크박스 */}
+                <th className="px-4 py-3 border-b border-[#1a1a1e] w-8">
+                  <button
+                    onClick={toggleSelectAll}
+                    className={`w-3.5 h-3.5 border flex items-center justify-center transition-colors ${
+                      expenses.length > 0 && selectedIds.size === expenses.length
+                        ? "border-[#555] bg-[#555]"
+                        : "border-[#333] bg-transparent hover:border-[#555]"
+                    }`}
+                  >
+                    {expenses.length > 0 && selectedIds.size === expenses.length && (
+                      <span className="text-[#0e0e10] text-[8px] leading-none">✓</span>
+                    )}
+                  </button>
+                </th>
                 {COLUMNS.map((col) => (
                   <th
                     key={col.key}
@@ -86,45 +133,68 @@ export default function ExpenseTable() {
               {expenses.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="text-center py-24 text-[#222] text-[10px] tracking-widest font-mono"
                   >
                     조건에 맞는 데이터가 없습니다
                   </td>
                 </tr>
               ) : (
-                expenses.map((e) => (
-                  <tr
-                    key={e.id}
-                    onClick={() => setEditingExpense(e)}
-                    className="border-b border-[#111] hover:bg-[#141418] transition-colors group cursor-pointer"
-                  >
-                    <td className="px-4 py-2.5 font-mono text-[#444] tabular-nums whitespace-nowrap">
-                      {e.spent_at}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className="font-mono text-[10px] text-[#666] border border-[#222] px-1.5 py-0.5">
-                        {categoryLabel(e.category)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-[#444]">
-                      {subCategoryLabel(e.sub_category)}
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-[#e0ddd8] group-hover:text-[#e8e4dc] transition-colors">
-                      {e.item}
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-[#3a3a3e]">
-                      {e.payment_method}
-                    </td>
-                    <td className="px-4 py-2.5 text-right font-mono tabular-nums">
-                      <span className="text-[#e8e4dc]">{e.amount.toLocaleString()}</span>
-                      <span className="text-[#2a2a2e] ml-0.5">원</span>
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-[#c0bbb4] max-w-[180px] truncate">
-                      {e.memo || "—"}
-                    </td>
-                  </tr>
-                ))
+                expenses.map((e) => {
+                  const isSelected = selectedIds.has(e.id);
+                  return (
+                    <tr
+                      key={e.id}
+                      onClick={() => setEditingExpense(e)}
+                      className={`border-b border-[#111] transition-colors group cursor-pointer ${
+                        isSelected
+                          ? "bg-[#c9a96e08] hover:bg-[#c9a96e10]"
+                          : "hover:bg-[#141418]"
+                      }`}
+                    >
+                      <td
+                        className="px-4 py-2.5 w-8"
+                        onClick={(ev) => toggleSelect(e.id, ev)}
+                      >
+                        <div
+                          className={`w-3.5 h-3.5 border flex items-center justify-center transition-colors ${
+                            isSelected
+                              ? "border-[#555] bg-[#555]"
+                              : "border-[#333] bg-transparent hover:border-[#555]"
+                          }`}
+                        >
+                          {isSelected && (
+                            <span className="text-[#0e0e10] text-[8px] leading-none">✓</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-[#444] tabular-nums whitespace-nowrap">
+                        {e.spent_at}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className="font-mono text-[10px] text-[#666] border border-[#222] px-1.5 py-0.5">
+                          {categoryLabel(e.category)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-[#444]">
+                        {subCategoryLabel(e.sub_category)}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-[#e0ddd8] group-hover:text-[#e8e4dc] transition-colors">
+                        {e.item}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-[#3a3a3e]">
+                        {e.payment_method}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono tabular-nums">
+                        <span className="text-[#e8e4dc]">{e.amount.toLocaleString()}</span>
+                        <span className="text-[#2a2a2e] ml-0.5">원</span>
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-[#c0bbb4] max-w-[180px] truncate">
+                        {e.memo || "—"}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -182,6 +252,14 @@ export default function ExpenseTable() {
         <ExpenseFormModal
           mode="create"
           onClose={() => setShowCreateModal(false)}
+        />
+      )}
+
+      {showToast && (
+        <DeleteToast
+          selectedCount={selectedIds.size}
+          onDelete={handleDelete}
+          onDismiss={handleDismiss}
         />
       )}
     </>
