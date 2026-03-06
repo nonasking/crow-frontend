@@ -114,7 +114,7 @@ export const useStore = create<Store>((set, get) => ({
       set({ loading: true, error: null });
       const { filters, page, pageSize, sortKey, sortDir } = get();
       const query = buildQueryParams(filters, page, pageSize, sortKey, sortDir);
-      const res = await fetch(`/api/expenses/?${query}`);
+      const res = await fetch(`/api/expenses/expenses/?${query}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
@@ -133,7 +133,7 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   updateExpense: async (id, payload) => {
-    const res = await fetch(`/api/expenses/${id}/`, {
+    const res = await fetch(`/api/expenses/expenses/${id}/`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -150,7 +150,7 @@ export const useStore = create<Store>((set, get) => ({
 
   fetchFilterOptions: async () => {
     try {
-      const res = await fetch("/api/expenses/options/");
+      const res = await fetch("/api/expenses/expenses/options/");
       if (!res.ok) return;
       const data = await res.json();
       set({
