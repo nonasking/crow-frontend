@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Expense, Filters, OptionItem, SortKey, SortDir, CategorySubcategoryMap, ExpenseUpdatePayload, BudgetSummary } from "@/types";
+import { Expense, Filters, OptionItem, SortKey, SortDir, CategorySubcategoryMap, ExpenseCreatePayload, ExpenseUpdatePayload, BudgetSummary } from "@/types";
 
 function getFirstDayOfMonth(): string {
   const now = new Date();

@@ -80,7 +80,7 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
     filters.category.length,
     filters.sub_category.length,
     filters.payment_method.length,
-    filters.amount_min || filters.amount_max,
+    filters.amount_min || filters.amount_max,ㅑ
     filters.search,
   ].filter(Boolean).length;
 
