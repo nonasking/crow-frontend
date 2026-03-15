@@ -125,23 +125,24 @@ export const useStore = create<Store>((set, get) => ({
   budgetSummary: null,
 
   fetchBudgetSummary: async () => {
-    const { filters } = get();
-    const params = new URLSearchParams();
+    try {
+      const { filters } = get();
+      const params = new URLSearchParams();
 
-    const baseDate = filters.spent_at_after
-      ? new Date(filters.spent_at_after)
-      : new Date();
-    params.set("year", String(baseDate.getFullYear()));
-    params.set("month", String(baseDate.getMonth() + 1));
+      const baseDate = filters.spent_at_after
+        ? new Date(filters.spent_at_after)
+        : new Date();
+      params.set("year", String(baseDate.getFullYear()));
+      params.set("month", String(baseDate.getMonth() + 1));
 
-    if (filters.category.length) params.set("category", filters.category.join(","));
-    // 날짜 필터도 함께 전달
-    if (filters.spent_at_after) params.set("spent_at_after", filters.spent_at_after);
-    if (filters.spent_at_before) params.set("spent_at_before", filters.spent_at_before);
+      if (filters.category.length) params.set("category", filters.category.join(","));
+      if (filters.spent_at_after) params.set("spent_at_after", filters.spent_at_after);
+      if (filters.spent_at_before) params.set("spent_at_before", filters.spent_at_before);
 
-    const res = await fetch(`/api/expenses/expenses/summary/?${params.toString()}`);
-    if (!res.ok) return;
-    set({ budgetSummary: await res.json() });
+      const res = await fetch(`/api/expenses/expenses/summary/?${params.toString()}`);
+      if (!res.ok) return;
+      set({ budgetSummary: await res.json() });
+    } catch {}
   },
 
   createExpense: async (payload) => {

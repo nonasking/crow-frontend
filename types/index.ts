@@ -44,6 +44,9 @@ export type BudgetSummary = {
   year: number;
   month: number;
   total_budget: number;
+  daily_budget: number;
+  total_spent: number;
+  count: number;
 };
 
 export type ExpenseCreatePayload = {
