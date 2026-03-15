@@ -8,6 +8,14 @@ function getFirstDayOfMonth(): string {
   return `${y}-${m}-01`;
 }
 
+function getLastDayOfMonth(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const lastDay = new Date(y, m, 0).getDate();
+  return `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+}
+
 export const DEFAULT_FILTERS: Filters = {
   spent_at_after: "",
   spent_at_before: "",
@@ -23,6 +31,7 @@ export const DEFAULT_FILTERS: Filters = {
 const INITIAL_FILTERS: Filters = {
   ...DEFAULT_FILTERS,
   spent_at_after: getFirstDayOfMonth(),
+  spent_at_before: getLastDayOfMonth(),
 };
 
 function buildQueryParams(
