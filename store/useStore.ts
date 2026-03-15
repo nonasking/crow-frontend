@@ -8,6 +8,31 @@ function getFirstDayOfMonth(): string {
   return `${y}-${m}-01`;
 }
 
+function getLastDayOfMonth(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const lastDay = new Date(y, m, 0).getDate();
+  return `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+}
+
+function getMonthBoundaries(dateStr: string): { first: string; last: string } {
+  const d = new Date(dateStr);
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const lastDay = new Date(y, m, 0).getDate();
+  const mm = String(m).padStart(2, "0");
+  return {
+    first: `${y}-${mm}-01`,
+    last: `${y}-${mm}-${String(lastDay).padStart(2, "0")}`,
+  };
+}
+
+function isSameMonth(a: string, b: string): boolean {
+  if (!a || !b) return true; // 한쪽이 비어있으면 보정 불필요
+  return a.slice(0, 7) === b.slice(0, 7); // "YYYY-MM" 비교
+}
+
 export const DEFAULT_FILTERS: Filters = {
   spent_at_after: "",
   spent_at_before: "",
@@ -23,6 +48,7 @@ export const DEFAULT_FILTERS: Filters = {
 const INITIAL_FILTERS: Filters = {
   ...DEFAULT_FILTERS,
   spent_at_after: getFirstDayOfMonth(),
+  spent_at_before: getLastDayOfMonth(),
 };
 
 function buildQueryParams(
@@ -120,22 +146,19 @@ export const useStore = create<Store>((set, get) => ({
       const { filters } = get();
       const params = new URLSearchParams();
 
-      // 필터의 날짜 기준으로 year/month 추출 (없으면 오늘)
       const baseDate = filters.spent_at_after
         ? new Date(filters.spent_at_after)
         : new Date();
       params.set("year", String(baseDate.getFullYear()));
       params.set("month", String(baseDate.getMonth() + 1));
 
-      // 카테고리 필터 연동
-      if (filters.category.length) {
-        params.set("category", filters.category.join(","));
-      }
+      if (filters.category.length) params.set("category", filters.category.join(","));
+      if (filters.spent_at_after) params.set("spent_at_after", filters.spent_at_after);
+      if (filters.spent_at_before) params.set("spent_at_before", filters.spent_at_before);
 
-      const res = await fetch(`/api/expenses/budget/summary/?${params.toString()}`);
+      const res = await fetch(`/api/expenses/expenses/summary/?${params.toString()}`);
       if (!res.ok) return;
-      const data = await res.json();
-      set({ budgetSummary: data });
+      set({ budgetSummary: await res.json() });
     } catch {}
   },
 
@@ -218,10 +241,33 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   setFilter: (key, value) => {
-    set((state) => ({
-      filters: { ...state.filters, [key]: value },
-      page: 1, // 필터 변경 시 첫 페이지로
-    }));
+    set((state) => {
+      const next = { ...state.filters, [key]: value };
+
+      if (key === "spent_at_after" && typeof value === "string" && value) {
+        // 월이 다르면 종료일을 해당 월 말일로 보정
+        if (!isSameMonth(value, next.spent_at_before)) {
+          next.spent_at_before = getMonthBoundaries(value).last;
+        }
+        // 시작일 > 종료일이면 종료일을 시작일과 같은 날로 보정
+        if (next.spent_at_before && value > next.spent_at_before) {
+          next.spent_at_before = value;
+        }
+      }
+
+      if (key === "spent_at_before" && typeof value === "string" && value) {
+        // 월이 다르면 시작일을 해당 월 1일로 보정
+        if (!isSameMonth(value, next.spent_at_after)) {
+          next.spent_at_after = getMonthBoundaries(value).first;
+        }
+        // 종료일 < 시작일이면 시작일을 종료일과 같은 날로 보정
+        if (next.spent_at_after && value < next.spent_at_after) {
+          next.spent_at_after = value;
+        }
+      }
+
+      return { filters: next, page: 1 };
+    });
     get().fetchExpenses();
   },
 

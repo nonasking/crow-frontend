@@ -3,23 +3,13 @@
 import { useStore } from "@/store/useStore";
 import { formatKRWFull } from "@/lib/chartUtils";
 
-function getDailyBudget(totalBudget: number): number {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  const lastDay = new Date(year, month + 1, 0).getDate(); // 말일
-  const todayDate = today.getDate();
-  return Math.round((totalBudget / lastDay) * todayDate);
-}
 
 export default function StatsCards() {
-  const { expenses, pagination, budgetSummary } = useStore();
+  const { budgetSummary, pagination } = useStore();
 
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
-
-  const dailyBudget = budgetSummary
-    ? getDailyBudget(budgetSummary.total_budget)
-    : null;
+  const total = budgetSummary?.total_spent ?? 0;
+  const count = budgetSummary?.count ?? pagination.count;
+  const dailyBudget = budgetSummary?.daily_budget ?? null;
 
   const remaining = dailyBudget != null ? dailyBudget - total : null;
   const usedPct =
@@ -33,7 +23,7 @@ export default function StatsCards() {
     {
       label: "합계",
       value: formatKRWFull(total),
-      sub: `${pagination.count.toLocaleString()}건`,
+      sub: `${count.toLocaleString()}건`,
       highlight: false,
     },
     {
