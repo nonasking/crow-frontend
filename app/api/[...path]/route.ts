@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
+
+// 토큰 없이 호출해야 하는 엔드포인트만 제외
+const NO_AUTH_PATHS = ["auth/login/"];
 
 async function handler(
   request: Request,
@@ -10,13 +14,24 @@ async function handler(
   const query = searchParams.toString();
   const { path } = await params;
   const subPath = path.join("/");
-
   const backendUrl = `${BACKEND_URL}/${subPath}/${query ? `?${query}` : ""}`;
+
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("access_token")?.value;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  const skipAuth = NO_AUTH_PATHS.some((p) => subPath.startsWith(p));
+  if (accessToken && !skipAuth) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
 
   try {
     const res = await fetch(backendUrl, {
       method: request.method,
-      headers: { "Content-Type": "application/json" },
+      headers,
       body:
         request.method !== "GET" && request.method !== "HEAD"
           ? await request.text()
@@ -25,7 +40,6 @@ async function handler(
     });
 
     if (!res.ok) {
-      // Django 에러 응답 본문을 그대로 전달
       const errorBody = await res.json().catch(() => ({
         error: `Backend error: ${res.status}`,
       }));
