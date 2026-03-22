@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useStore } from "@/store/useStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import FilterPanel from "@/components/filters/FilterPanel";
 import ExpenseTable from "@/components/table/ExpenseTable";
 import StatsCards from "@/components/ui/StatsCards";
@@ -10,13 +12,20 @@ import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
 
 export default function Home() {
   const { fetchExpenses, fetchFilterOptions, loading, error } = useStore();
+  const { user, logout } = useAuthStore();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [view, setView] = useState<"table" | "charts">("table");
 
   useEffect(() => {
     fetchExpenses();
-    fetchFilterOptions(); // ← 추가
+    fetchFilterOptions();
   }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/login");
+  };
 
   return (
     <div className="min-h-screen bg-[#0e0e10] text-[#e8e4dc] flex flex-col">
@@ -38,26 +47,42 @@ export default function Home() {
           </span>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setView("table")}
+              className={`text-[9px] font-mono px-3 py-1.5 border tracking-widest uppercase transition-all ${
+                view === "table"
+                  ? "border-[#c9a96e] text-[#c9a96e]"
+                  : "border-[#1a1a1e] text-[#c0bbb4] hover:border-[#2a2a2e] hover:text-[#555]"
+              }`}
+            >
+              표
+            </button>
+            <button
+              onClick={() => setView("charts")}
+              className={`text-[9px] font-mono px-3 py-1.5 border tracking-widest uppercase transition-all ${
+                view === "charts"
+                  ? "border-[#c9a96e] text-[#c9a96e]"
+                  : "border-[#1a1a1e] text-[#c0bbb4] hover:border-[#2a2a2e] hover:text-[#555]"
+              }`}
+            >
+              차트
+            </button>
+          </div>
+
+          {/* 구분선 + 유저 정보 + 로그아웃 */}
+          <div className="h-4 w-px bg-[#2a2a2e]" />
+          {user && (
+            <span className="text-[9px] font-mono text-[#555] tracking-widest hidden sm:block">
+              {user.username}
+            </span>
+          )}
           <button
-            onClick={() => setView("table")}
-            className={`text-[9px] font-mono px-3 py-1.5 border tracking-widest uppercase transition-all ${
-              view === "table"
-                ? "border-[#c9a96e] text-[#c9a96e]"
-                : "border-[#1a1a1e] text-[#c0bbb4] hover:border-[#2a2a2e] hover:text-[#555]"
-            }`}
+            onClick={handleLogout}
+            className="text-[9px] font-mono text-[#c0bbb4] hover:text-[#c9a96e] tracking-widest uppercase transition-colors"
           >
-            표
-          </button>
-          <button
-            onClick={() => setView("charts")}
-            className={`text-[9px] font-mono px-3 py-1.5 border tracking-widest uppercase transition-all ${
-              view === "charts"
-                ? "border-[#c9a96e] text-[#c9a96e]"
-                : "border-[#1a1a1e] text-[#c0bbb4] hover:border-[#2a2a2e] hover:text-[#555]"
-            }`}
-          >
-            차트
+            Logout
           </button>
         </div>
       </header>
