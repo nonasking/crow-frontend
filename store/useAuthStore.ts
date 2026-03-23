@@ -18,7 +18,7 @@ type AuthStore = {
 export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true,
 
   fetchMe: async () => {
     try {
