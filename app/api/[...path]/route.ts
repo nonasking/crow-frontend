@@ -46,6 +46,10 @@ async function handler(
       return NextResponse.json(errorBody, { status: res.status });
     }
 
+    if (res.status === 204) {
+      return new NextResponse(null, { status: 204 });
+    }
+
     const data = await res.json();
     return NextResponse.json(data);
   } catch (e) {
