@@ -284,3 +284,7 @@ thumb
 sketch
 
 # End of https://www.toptal.com/developers/gitignore/api/nextjs,pycharm,jetbrains,react
+
+_workspace/
+.claude/cache/
+.claude/tmp/
