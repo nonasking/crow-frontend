@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useStore } from "@/store/useStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import FilterPanel from "@/components/filters/FilterPanel";
@@ -42,9 +43,20 @@ export default function Home() {
           <span className="font-serif text-base text-[#e0ddd8] tracking-wide">
             ACCOUNT BOOK
           </span>
-          <span className="text-[9px] font-mono text-[#c0bbb4] tracking-widest uppercase hidden sm:block">
-            Expense Ledger
-          </span>
+          <div className="flex items-center gap-1">
+            <Link
+              href="/"
+              className="text-[9px] font-mono px-3 py-1.5 border tracking-widest uppercase transition-all border-[#c9a96e] text-[#c9a96e]"
+            >
+              EXPENSE
+            </Link>
+            <Link
+              href="/budget"
+              className="text-[9px] font-mono px-3 py-1.5 border tracking-widest uppercase transition-all border-[#1a1a1e] text-[#c0bbb4] hover:border-[#2a2a2e] hover:text-[#555]"
+            >
+              BUDGET
+            </Link>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">

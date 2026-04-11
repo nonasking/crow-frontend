@@ -58,3 +58,43 @@ export type ExpenseCreatePayload = {
   amount: number;
   memo: string;
 };
+
+export type Budget = {
+  id: number;
+  year: number;
+  month: number;
+  category: string;
+  sub_category: string;
+  amount: number;
+  memo: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BudgetCreatePayload = {
+  year: number;
+  month: number;
+  category: string;
+  sub_category: string;
+  amount: number;
+  memo?: string;
+};
+
+export type BudgetUpdatePayload = Partial<BudgetCreatePayload>;
+
+export type BudgetListResponse = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Budget[];
+};
+
+export type BudgetFilters = {
+  year: number;
+  month: number;
+  category?: string;
+  sub_category?: string;
+  ordering?: string;
+  page?: number;
+  page_size?: number;
+};
