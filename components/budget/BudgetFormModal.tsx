@@ -60,7 +60,7 @@ export default function BudgetFormModal({ mode, budget, onClose, year, month }: 
     form.month <= 12 &&
     !!form.category &&
     !!form.sub_category &&
-    form.amount > 0;
+    form.amount !== 0;
 
   const handleCategoryChange = (value: string) => {
     setForm((prev) => ({ ...prev, category: value, sub_category: "" }));
@@ -191,7 +191,6 @@ export default function BudgetFormModal({ mode, budget, onClose, year, month }: 
                 onChange={(e) => setForm((prev) => ({ ...prev, amount: Number(e.target.value) }))}
                 className={`${inputClass} pr-8`}
                 placeholder="0"
-                min={1}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#444]">
                 원
