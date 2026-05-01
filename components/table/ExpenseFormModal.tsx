@@ -80,7 +80,7 @@ export default function ExpenseFormModal({ mode, expense, onClose }: Props) {
     form.sub_category &&
     form.item.trim() &&
     form.payment_method &&
-    form.amount > 0;
+    form.amount !== 0;
 
   const handleSubmit = async () => {
     setError(null);
@@ -218,7 +218,6 @@ export default function ExpenseFormModal({ mode, expense, onClose }: Props) {
                 onChange={(e) => setForm((p) => ({ ...p, amount: Number(e.target.value) }))}
                 className={`${inputClass} pr-8`}
                 placeholder="0"
-                min={0}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#444]">
                 원
