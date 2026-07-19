@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useStore } from "@/store/useStore";
+import Combobox from "@/components/common/Combobox";
 import { Expense, ExpenseCreatePayload, ExpenseUpdatePayload } from "@/types";
 
 type CreateMode = {
@@ -147,36 +148,22 @@ export default function ExpenseFormModal({ mode, expense, onClose }: Props) {
           {/* 대분류 */}
           <div>
             <label className={labelClass}>대분류</label>
-            <select
+            <Combobox
               value={form.category}
-              onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
-              className={selectClass}
-            >
-              <option value="">선택</option>
-              {categoryOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              options={categoryOptions}
+              onChange={(v) => setForm((p) => ({ ...p, category: v }))}
+            />
           </div>
 
           {/* 소분류 */}
           <div>
             <label className={labelClass}>소분류</label>
-            <select
+            <Combobox
               value={form.sub_category}
-              onChange={(e) => setForm((p) => ({ ...p, sub_category: e.target.value }))}
-              className={selectClass}
+              options={visibleSubCategories}
+              onChange={(v) => setForm((p) => ({ ...p, sub_category: v }))}
               disabled={!form.category}
-            >
-              <option value="">선택</option>
-              {visibleSubCategories.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* 항목 */}
