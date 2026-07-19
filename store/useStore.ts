@@ -1,83 +1,25 @@
 import { create } from "zustand";
-import { Expense, Filters, OptionItem, SortKey, SortDir, CategorySubcategoryMap, ExpenseCreatePayload, ExpenseUpdatePayload, BudgetSummary } from "@/types";
+import {
+  Expense,
+  Filters,
+  OptionItem,
+  SortKey,
+  SortDir,
+  CategorySubcategoryMap,
+  ExpenseCreatePayload,
+  ExpenseUpdatePayload,
+  BudgetSummary,
+} from "@/types";
+import {
+  DEFAULT_FILTERS,
+  applyDateFilter,
+  buildBudgetSummaryParams,
+  buildQueryParams,
+  getInitialFilters,
+  nextSortDir,
+} from "@/lib/expenseFilters";
 
-function getFirstDayOfMonth(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}-01`;
-}
-
-function getLastDayOfMonth(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth() + 1;
-  const lastDay = new Date(y, m, 0).getDate();
-  return `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-}
-
-function getMonthBoundaries(dateStr: string): { first: string; last: string } {
-  const d = new Date(dateStr);
-  const y = d.getFullYear();
-  const m = d.getMonth() + 1;
-  const lastDay = new Date(y, m, 0).getDate();
-  const mm = String(m).padStart(2, "0");
-  return {
-    first: `${y}-${mm}-01`,
-    last: `${y}-${mm}-${String(lastDay).padStart(2, "0")}`,
-  };
-}
-
-function isSameMonth(a: string, b: string): boolean {
-  if (!a || !b) return true; // 한쪽이 비어있으면 보정 불필요
-  return a.slice(0, 7) === b.slice(0, 7); // "YYYY-MM" 비교
-}
-
-export const DEFAULT_FILTERS: Filters = {
-  spent_at_after: "",
-  spent_at_before: "",
-  category: [],
-  sub_category: [],
-  payment_method: [],
-  amount_min: "",
-  amount_max: "",
-  search: "",
-};
-
-// 초기 로드용 — 당월 1일 설정
-const INITIAL_FILTERS: Filters = {
-  ...DEFAULT_FILTERS,
-  spent_at_after: getFirstDayOfMonth(),
-  spent_at_before: getLastDayOfMonth(),
-};
-
-function buildQueryParams(
-  filters: Filters,
-  page: number,
-  pageSize: number,
-  sortKey: SortKey,
-  sortDir: SortDir
-): string {
-  const params = new URLSearchParams();
-
-  if (filters.spent_at_after) params.set("spent_at_after", filters.spent_at_after);
-  if (filters.spent_at_before) params.set("spent_at_before", filters.spent_at_before);
-
-  // BaseInFilter: 쉼표로 join해서 전송
-  if (filters.category.length) params.set("category", filters.category.join(","));
-  if (filters.sub_category.length) params.set("sub_category", filters.sub_category.join(","));
-  if (filters.payment_method.length) params.set("payment_method", filters.payment_method.join(","));
-
-  if (filters.amount_min) params.set("amount_min", filters.amount_min);
-  if (filters.amount_max) params.set("amount_max", filters.amount_max);
-  if (filters.search) params.set("search", filters.search);
-
-  params.set("page", String(page));
-  params.set("page_size", String(pageSize));
-  params.set("ordering", sortDir === "desc" ? `-${sortKey}` : sortKey);
-
-  return params.toString();
-}
+export { DEFAULT_FILTERS };
 
 type PaginationMeta = {
   count: number;
@@ -130,7 +72,7 @@ export const useStore = create<Store>((set, get) => ({
   pagination: { count: 0, next: null, previous: null },
   loading: false,
   error: null,
-  filters: INITIAL_FILTERS,
+  filters: getInitialFilters(),
   page: 1,
   pageSize: 20,
   sortKey: "spent_at",
@@ -144,19 +86,9 @@ export const useStore = create<Store>((set, get) => ({
   fetchBudgetSummary: async () => {
     try {
       const { filters } = get();
-      const params = new URLSearchParams();
+      const query = buildBudgetSummaryParams(filters);
 
-      const baseDate = filters.spent_at_after
-        ? new Date(filters.spent_at_after)
-        : new Date();
-      params.set("year", String(baseDate.getFullYear()));
-      params.set("month", String(baseDate.getMonth() + 1));
-
-      if (filters.category.length) params.set("category", filters.category.join(","));
-      if (filters.spent_at_after) params.set("spent_at_after", filters.spent_at_after);
-      if (filters.spent_at_before) params.set("spent_at_before", filters.spent_at_before);
-
-      const res = await fetch(`/api/expenses/expenses/summary/?${params.toString()}`);
+      const res = await fetch(`/api/expenses/expenses/summary/?${query}`);
       if (!res.ok) return;
       set({ budgetSummary: await res.json() });
     } catch {}
@@ -241,33 +173,10 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   setFilter: (key, value) => {
-    set((state) => {
-      const next = { ...state.filters, [key]: value };
-
-      if (key === "spent_at_after" && typeof value === "string" && value) {
-        // 월이 다르면 종료일을 해당 월 말일로 보정
-        if (!isSameMonth(value, next.spent_at_before)) {
-          next.spent_at_before = getMonthBoundaries(value).last;
-        }
-        // 시작일 > 종료일이면 종료일을 시작일과 같은 날로 보정
-        if (next.spent_at_before && value > next.spent_at_before) {
-          next.spent_at_before = value;
-        }
-      }
-
-      if (key === "spent_at_before" && typeof value === "string" && value) {
-        // 월이 다르면 시작일을 해당 월 1일로 보정
-        if (!isSameMonth(value, next.spent_at_after)) {
-          next.spent_at_after = getMonthBoundaries(value).first;
-        }
-        // 종료일 < 시작일이면 시작일을 종료일과 같은 날로 보정
-        if (next.spent_at_after && value < next.spent_at_after) {
-          next.spent_at_after = value;
-        }
-      }
-
-      return { filters: next, page: 1 };
-    });
+    set((state) => ({
+      filters: applyDateFilter(state.filters, key, value),
+      page: 1,
+    }));
     get().fetchExpenses();
   },
 
@@ -278,8 +187,7 @@ export const useStore = create<Store>((set, get) => ({
 
   setSort: (key) => {
     const { sortKey, sortDir } = get();
-    const dir = sortKey === key ? (sortDir === "asc" ? "desc" : "asc") : "asc";
-    set({ sortKey: key, sortDir: dir, page: 1 });
+    set({ sortKey: key, sortDir: nextSortDir(sortKey, sortDir, key), page: 1 });
     get().fetchExpenses();
   },
 
