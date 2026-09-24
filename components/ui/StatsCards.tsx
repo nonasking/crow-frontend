@@ -5,7 +5,11 @@ import { formatKRWFull } from "@/lib/chartUtils";
 
 
 export default function StatsCards() {
-  const { budgetSummary, pagination } = useStore();
+  const { budgetSummary, pagination, filters } = useStore();
+  const spansMonths =
+    !!filters.spent_at_after &&
+    !!filters.spent_at_before &&
+    filters.spent_at_after.slice(0, 7) !== filters.spent_at_before.slice(0, 7);
 
   const total = budgetSummary?.total_spent ?? 0;
   const count = budgetSummary?.count ?? pagination.count;
@@ -30,7 +34,7 @@ export default function StatsCards() {
       label: "일할 배정 예산",
       value: dailyBudget != null ? formatKRWFull(dailyBudget) : "—",
       sub: budgetSummary
-        ? `월 예산 ${formatKRWFull(budgetSummary.total_budget)}`
+        ? `${spansMonths ? "기간" : "월"} 예산 ${formatKRWFull(budgetSummary.total_budget)}`
         : "예산 없음",
       highlight: false,
     },
