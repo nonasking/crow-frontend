@@ -5,8 +5,6 @@ import {
   buildBudgetSummaryParams,
   buildQueryParams,
   getInitialFilters,
-  getMonthBoundaries,
-  isSameMonth,
   nextSortDir,
 } from "@/lib/expenseFilters";
 import { Filters } from "@/types";
@@ -16,34 +14,6 @@ const base: Filters = {
   spent_at_after: "2026-03-01",
   spent_at_before: "2026-03-31",
 };
-
-describe("isSameMonth", () => {
-  it("YYYY-MM이 같으면 true", () => {
-    expect(isSameMonth("2026-03-01", "2026-03-31")).toBe(true);
-    expect(isSameMonth("2026-03-31", "2026-04-01")).toBe(false);
-  });
-
-  it("한쪽이 비어 있으면 보정이 필요 없으므로 true", () => {
-    expect(isSameMonth("", "2026-04-01")).toBe(true);
-    expect(isSameMonth("2026-04-01", "")).toBe(true);
-  });
-});
-
-describe("getMonthBoundaries", () => {
-  it("31일 달의 경계를 구한다", () => {
-    expect(getMonthBoundaries("2026-03-15")).toEqual({
-      first: "2026-03-01",
-      last: "2026-03-31",
-    });
-  });
-
-  it("윤년 2월의 말일은 29일", () => {
-    expect(getMonthBoundaries("2024-02-10")).toEqual({
-      first: "2024-02-01",
-      last: "2024-02-29",
-    });
-  });
-});
 
 describe("getInitialFilters", () => {
   it("주어진 날짜가 속한 달의 1일~말일로 채운다", () => {
@@ -55,10 +25,16 @@ describe("getInitialFilters", () => {
 });
 
 describe("applyDateFilter", () => {
-  it("시작일을 다른 달로 바꾸면 종료일을 그 달 말일로 보정한다", () => {
+  it("시작일을 이전 달로 바꿔도 종료일은 그대로 둔다", () => {
+    const next = applyDateFilter(base, "spent_at_after", "2025-01-01");
+    expect(next.spent_at_after).toBe("2025-01-01");
+    expect(next.spent_at_before).toBe("2026-03-31");
+  });
+
+  it("시작일이 종료일보다 늦은 달이면 종료일을 시작일로 맞춘다", () => {
     const next = applyDateFilter(base, "spent_at_after", "2026-05-10");
     expect(next.spent_at_after).toBe("2026-05-10");
-    expect(next.spent_at_before).toBe("2026-05-31");
+    expect(next.spent_at_before).toBe("2026-05-10");
   });
 
   it("같은 달 안에서 시작일이 종료일보다 늦으면 종료일을 시작일로 맞춘다", () => {
@@ -70,9 +46,15 @@ describe("applyDateFilter", () => {
     expect(next.spent_at_before).toBe("2026-03-20");
   });
 
-  it("종료일을 다른 달로 바꾸면 시작일을 그 달 1일로 보정한다", () => {
+  it("종료일을 다음 달 이후로 바꿔도 시작일은 그대로 둔다", () => {
+    const next = applyDateFilter(base, "spent_at_before", "2026-08-15");
+    expect(next.spent_at_after).toBe("2026-03-01");
+    expect(next.spent_at_before).toBe("2026-08-15");
+  });
+
+  it("종료일이 시작일보다 이른 달이면 시작일을 종료일로 맞춘다", () => {
     const next = applyDateFilter(base, "spent_at_before", "2026-01-20");
-    expect(next.spent_at_after).toBe("2026-01-01");
+    expect(next.spent_at_after).toBe("2026-01-20");
     expect(next.spent_at_before).toBe("2026-01-20");
   });
 
@@ -85,6 +67,7 @@ describe("applyDateFilter", () => {
 
   it("원본 필터를 변경하지 않는다", () => {
     applyDateFilter(base, "spent_at_after", "2026-05-10");
+    expect(base.spent_at_after).toBe("2026-03-01");
     expect(base.spent_at_before).toBe("2026-03-31");
   });
 });

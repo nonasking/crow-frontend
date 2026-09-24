@@ -15,28 +15,6 @@ export function getLastDayOfMonth(now: Date = new Date()): string {
   return `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 }
 
-/** 주어진 날짜가 속한 달의 1일과 말일 */
-export function getMonthBoundaries(dateStr: string): {
-  first: string;
-  last: string;
-} {
-  const d = new Date(dateStr);
-  const y = d.getFullYear();
-  const m = d.getMonth() + 1;
-  const lastDay = new Date(y, m, 0).getDate();
-  const mm = String(m).padStart(2, "0");
-  return {
-    first: `${y}-${mm}-01`,
-    last: `${y}-${mm}-${String(lastDay).padStart(2, "0")}`,
-  };
-}
-
-/** "YYYY-MM" 비교. 한쪽이 비어 있으면 보정이 필요 없으므로 true. */
-export function isSameMonth(a: string, b: string): boolean {
-  if (!a || !b) return true;
-  return a.slice(0, 7) === b.slice(0, 7);
-}
-
 export const DEFAULT_FILTERS: Filters = {
   spent_at_after: "",
   spent_at_before: "",
@@ -59,8 +37,7 @@ export function getInitialFilters(now: Date = new Date()): Filters {
 
 /**
  * 날짜 필터 하나가 바뀌었을 때 반대쪽 날짜를 보정한 새 Filters를 돌려준다.
- * - 월이 다르면 반대쪽을 해당 월의 경계(1일 / 말일)로 맞춘다.
- * - 시작일 > 종료일이면 두 날짜를 같은 날로 맞춘다.
+ * 기간은 여러 달에 걸칠 수 있고, 시작일 > 종료일이 되면 반대쪽을 같은 날로 맞춘다.
  * 날짜 외 필터거나 값이 비어 있으면 그대로 반환한다.
  */
 export function applyDateFilter<K extends keyof Filters>(
@@ -71,18 +48,12 @@ export function applyDateFilter<K extends keyof Filters>(
   const next = { ...filters, [key]: value };
 
   if (key === "spent_at_after" && typeof value === "string" && value) {
-    if (!isSameMonth(value, next.spent_at_before)) {
-      next.spent_at_before = getMonthBoundaries(value).last;
-    }
     if (next.spent_at_before && value > next.spent_at_before) {
       next.spent_at_before = value;
     }
   }
 
   if (key === "spent_at_before" && typeof value === "string" && value) {
-    if (!isSameMonth(value, next.spent_at_after)) {
-      next.spent_at_after = getMonthBoundaries(value).first;
-    }
     if (next.spent_at_after && value < next.spent_at_after) {
       next.spent_at_after = value;
     }

@@ -127,17 +127,25 @@ describe("setFilter", () => {
     expect(listParams(spy).get("search")).toBe("커피");
   });
 
-  it("시작일을 다른 달로 바꾸면 종료일을 그 달 말일로 보정한다", () => {
-    stubFetch(LIST_RESPONSE);
+  it("여러 달에 걸친 기간을 그대로 유지하고 쿼리에 싣는다", () => {
+    const spy = stubFetch(LIST_RESPONSE);
     useStore.setState({
       filters: { ...INITIAL.filters, spent_at_after: "2026-03-01", spent_at_before: "2026-03-31" },
     });
 
-    useStore.getState().setFilter("spent_at_after", "2026-05-10");
+    useStore.getState().setFilter("spent_at_after", "2025-01-01");
+    useStore.getState().setFilter("spent_at_before", "2026-08-15");
 
     const { filters } = useStore.getState();
-    expect(filters.spent_at_after).toBe("2026-05-10");
-    expect(filters.spent_at_before).toBe("2026-05-31");
+    expect(filters.spent_at_after).toBe("2025-01-01");
+    expect(filters.spent_at_before).toBe("2026-08-15");
+    const lastList = spy.mock.calls
+      .map(([url]) => String(url))
+      .filter((url) => url.startsWith("/api/expenses/expenses/?"))
+      .at(-1)!;
+    const params = new URLSearchParams(lastList.split("?")[1]);
+    expect(params.get("spent_at_after")).toBe("2025-01-01");
+    expect(params.get("spent_at_before")).toBe("2026-08-15");
   });
 });
 
