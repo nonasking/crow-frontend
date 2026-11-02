@@ -11,10 +11,19 @@ type Props = {
 export default function DeleteToast({ selectedCount, onDelete, onDismiss }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleConfirm = async () => {
     setLoading(true);
-    await onDelete();
+    setError(null);
+    try {
+      await onDelete();
+    } catch (e) {
+      // 실패하면 토스트를 닫지 않고 이유를 보여준다.
+      setError(e instanceof Error ? e.message : String(e));
+      setLoading(false);
+      return;
+    }
     setLoading(false);
     onDismiss();
   };
@@ -60,6 +69,11 @@ export default function DeleteToast({ selectedCount, onDelete, onDismiss }: Prop
           >
             {loading ? "삭제 중..." : "확인"}
           </button>
+          {error && (
+            <span role="alert" className="text-[10px] text-red-400">
+              {error}
+            </span>
+          )}
         </>
       )}
     </div>
