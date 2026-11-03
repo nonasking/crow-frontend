@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useStore } from "@/store/useStore";
+import { SEARCH_DEBOUNCE_MS, useStore } from "@/store/useStore";
 import { getInitialFilters } from "@/lib/expenseFilters";
 
 const LIST_RESPONSE = {
@@ -214,6 +214,81 @@ describe("createExpense / deleteExpenses", () => {
     expect(deletes).toHaveLength(2);
     expect(String(deletes[0][0])).toBe("/api/expenses/expenses/1/");
     expect(String(deletes[1][0])).toBe("/api/expenses/expenses/2/");
+    expect(useStore.getState().expenses).toHaveLength(2);
+  });
+});
+
+describe("동시 요청 / 디바운스", () => {
+  it("늦게 도착한 옛 목록 응답은 최신 결과를 덮어쓰지 않는다", async () => {
+    const resolvers: ((r: Response) => void)[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        if (String(url).includes("/summary/")) return Promise.resolve(Response.json({}));
+        return new Promise<Response>((resolve) => resolvers.push(resolve));
+      })
+    );
+
+    const first = useStore.getState().fetchExpenses();
+    const second = useStore.getState().fetchExpenses();
+    await vi.waitFor(() => expect(resolvers).toHaveLength(2));
+
+    // 최신 요청이 먼저 끝나고, 옛 요청이 나중에 끝난다.
+    resolvers[1](Response.json({ ...LIST_RESPONSE, count: 1, results: [LIST_RESPONSE.results[0]] }));
+    await second;
+    resolvers[0](Response.json(LIST_RESPONSE));
+    await first;
+
+    expect(useStore.getState().expenses.map((e) => e.id)).toEqual([1]);
+    expect(useStore.getState().loading).toBe(false);
+  });
+
+  it("검색어 입력은 타이핑이 멈춘 뒤 한 번만 조회한다", async () => {
+    vi.useFakeTimers();
+    try {
+      const spy = stubFetch(LIST_RESPONSE);
+      for (const q of ["스", "스타", "스타벅스"]) useStore.getState().setFilter("search", q);
+
+      expect(useStore.getState().filters.search).toBe("스타벅스");
+      expect(spy).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
+      const lists = spy.mock.calls.filter(([url]) => !String(url).includes("/summary/"));
+      expect(lists).toHaveLength(1);
+      expect(listParams(spy).get("search")).toBe("스타벅스");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("setFilters는 여러 필터를 바꾸고 한 번만 조회한다", async () => {
+    const spy = stubFetch(LIST_RESPONSE);
+
+    useStore.getState().setFilters({ category: ["food"], sub_category: ["cafe"] });
+    await vi.waitFor(() => expect(spy).toHaveBeenCalled());
+
+    const lists = spy.mock.calls.filter(([url]) => !String(url).includes("/summary/"));
+    expect(lists).toHaveLength(1);
+    expect(listParams(spy).getAll("category")).toEqual(["food"]);
+    expect(useStore.getState().filters.sub_category).toEqual(["cafe"]);
+  });
+});
+
+describe("deleteExpenses 실패 처리", () => {
+  it("일부 삭제가 실패하면 목록은 다시 읽고 실패한 id를 담아 throw한다", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "DELETE") {
+          return String(url).endsWith("/2/")
+            ? Response.json({ detail: "nope" }, { status: 500 })
+            : new Response(null, { status: 204 });
+        }
+        return Response.json(LIST_RESPONSE);
+      })
+    );
+
+    await expect(useStore.getState().deleteExpenses([1, 2])).rejects.toThrow(/1건 삭제 실패 \(id: 2\)/);
     expect(useStore.getState().expenses).toHaveLength(2);
   });
 });

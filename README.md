@@ -7,7 +7,7 @@ Personal expense tracking app built with Next.js. Connects to [crow-backend](../
 - **Expense management** — create, edit, and delete expenses with inline modals
 - **Filtering & sorting** — filter by date range, category, subcategory, payment method, and amount; sort by any column
 - **Budget tracking** — daily budget allocation with remaining budget and usage percentage
-- **Charts** — category breakdown (pie) and monthly trend (bar) powered by Recharts
+- **Charts** — category breakdown (pie) and monthly trend (bar) powered by Recharts. They are computed from the rows on the current table page (20 by default), not the whole filtered set; a backend aggregate endpoint is needed for that
 - **JWT authentication** — login/logout with tokens stored in HttpOnly cookies via a Next.js API proxy; no tokens in `localStorage`
 - **Route protection** — `AuthGuard` wraps all pages and redirects unauthenticated users to `/login`
 
@@ -116,6 +116,8 @@ Open [http://localhost:3000](http://localhost:3000). You will be redirected to `
 
 Tests run on [Vitest](https://vitest.dev) in a plain Node environment — no DOM, no dev server, and no backend required.
 
+CI (`.github/workflows/ci.yml`) runs lint, type check, tests, a production build and `npm audit --omit=dev` on every push and pull request to `main` / `develop`.
+
 ```bash
 npm run test          # single run
 npm run test:watch    # watch mode
@@ -128,7 +130,7 @@ The suite covers the pure logic behind the app rather than rendered markup:
 |---|---|
 | `lib/__tests__/proxy.test.ts` | Proxy internals — the `NO_AUTH_PATHS` allowlist, `Authorization` header injection, backend URL building, and the error paths (upstream status passthrough, `204`, `502` when the backend is unreachable) with `fetch` mocked |
 | `lib/__tests__/expenseFilters.test.ts` | Filter/query logic — date-range correction, query-string building, sort direction toggling |
-| `store/__tests__/useStore.test.ts` | Zustand expense store — fetch/error state, pagination and sort transitions, filter resets, delete fan-out |
+| `store/__tests__/useStore.test.ts` | Zustand expense store — fetch/error state, pagination and sort transitions, filter resets, delete fan-out and partial-failure reporting, stale responses ignored, search debounce, batched filter updates |
 | `lib/__tests__/chartUtils.test.ts` | Chart color cycling and KRW formatters |
 
 The proxy and filter logic used to live inline in the route handler and the store. They were extracted into `lib/proxy.ts` and `lib/expenseFilters.ts` so they can be tested without booting Next.js; the route handler and store are thin callers of those helpers.
