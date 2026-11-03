@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useStore } from "@/store/useStore";
 import Combobox from "@/components/common/Combobox";
 import { Expense, ExpenseCreatePayload, ExpenseUpdatePayload } from "@/types";
@@ -61,13 +61,15 @@ export default function ExpenseFormModal({ mode, expense, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // 카테고리 변경 시 유효하지 않은 sub_category 초기화
-  useEffect(() => {
-    const allowed = categorySubcategoryMap[form.category] ?? [];
-    if (form.sub_category && !allowed.includes(form.sub_category)) {
-      setForm((prev) => ({ ...prev, sub_category: "" }));
-    }
-  }, [form.category]);
+  // 카테고리를 바꿀 때 새 카테고리에 없는 sub_category는 함께 비운다.
+  // (effect에서 setState하면 렌더가 한 번 더 일어나므로 변경 시점에 같이 처리)
+  const changeCategory = (category: string) => {
+    setForm((prev) => {
+      const allowed = categorySubcategoryMap[category] ?? [];
+      const keepSub = !prev.sub_category || allowed.includes(prev.sub_category);
+      return { ...prev, category, sub_category: keepSub ? prev.sub_category : "" };
+    });
+  };
 
   const visibleSubCategories = form.category
     ? subCategoryOptions.filter((opt) =>
@@ -151,7 +153,7 @@ export default function ExpenseFormModal({ mode, expense, onClose }: Props) {
             <Combobox
               value={form.category}
               options={categoryOptions}
-              onChange={(v) => setForm((p) => ({ ...p, category: v }))}
+              onChange={changeCategory}
             />
           </div>
 

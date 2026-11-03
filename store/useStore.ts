@@ -21,6 +21,15 @@ import {
 
 export { DEFAULT_FILTERS };
 
+// 목록·요약 요청의 순번. 필터를 빠르게 바꾸면 요청이 여러 개 동시에 나가는데,
+// 늦게 도착한 옛 응답이 최신 결과를 덮어쓰지 않도록 마지막 요청의 응답만 반영한다.
+let latestExpensesRequest = 0;
+let latestSummaryRequest = 0;
+
+// 검색어는 입력창에는 바로 반영하되, 조회는 타이핑이 멈춘 뒤 한 번만 한다.
+export const SEARCH_DEBOUNCE_MS = 300;
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
 type PaginationMeta = {
   count: number;
   next: string | null;
@@ -58,6 +67,7 @@ type Store = {
   deleteExpenses: (ids: number[]) => Promise<void>;
   fetchFilterOptions: () => Promise<void>;
   setFilter: <K extends keyof Filters>(key: K, value: Filters[K]) => void;
+  setFilters: (patch: Partial<Filters>) => void;
   resetFilters: () => void;
   setSort: (key: SortKey) => void;
   setPage: (page: number) => void;
@@ -84,13 +94,16 @@ export const useStore = create<Store>((set, get) => ({
   budgetSummary: null,
 
   fetchBudgetSummary: async () => {
+    const requestId = ++latestSummaryRequest;
     try {
       const { filters } = get();
       const query = buildBudgetSummaryParams(filters);
 
       const res = await fetch(`/api/expenses/expenses/summary/?${query}`);
       if (!res.ok) return;
-      set({ budgetSummary: await res.json() });
+      const summary = await res.json();
+      if (requestId !== latestSummaryRequest) return;
+      set({ budgetSummary: summary });
     } catch {}
   },
 
@@ -110,6 +123,7 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   fetchExpenses: async () => {
+    const requestId = ++latestExpensesRequest;
     try {
       set({ loading: true, error: null });
       const { filters, page, pageSize, sortKey, sortDir } = get();
@@ -117,6 +131,7 @@ export const useStore = create<Store>((set, get) => ({
       const res = await fetch(`/api/expenses/expenses/?${query}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      if (requestId !== latestExpensesRequest) return;
 
       set({
         expenses: data.results ?? data,
@@ -129,6 +144,7 @@ export const useStore = create<Store>((set, get) => ({
       });
       get().fetchBudgetSummary();
     } catch (e) {
+      if (requestId !== latestExpensesRequest) return;
       set({ loading: false, error: String(e) });
     }
   },
@@ -150,12 +166,19 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   deleteExpenses: async (ids) => {
-    await Promise.all(
-      ids.map((id) =>
-        fetch(`/api/expenses/expenses/${id}/`, { method: "DELETE" })
-      )
+    // fetch는 4xx/5xx에서도 reject하지 않으므로 응답 상태를 직접 확인한다.
+    const results = await Promise.allSettled(
+      ids.map(async (id) => {
+        const res = await fetch(`/api/expenses/expenses/${id}/`, { method: "DELETE" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      })
     );
     await get().fetchExpenses();
+
+    const failed = ids.filter((_, i) => results[i].status === "rejected");
+    if (failed.length) {
+      throw new Error(`${failed.length}건 삭제 실패 (id: ${failed.join(", ")})`);
+    }
   },
 
   fetchFilterOptions: async () => {
@@ -177,10 +200,29 @@ export const useStore = create<Store>((set, get) => ({
       filters: applyDateFilter(state.filters, key, value),
       page: 1,
     }));
+    clearTimeout(searchTimer);
+    if (key === "search") {
+      searchTimer = setTimeout(() => get().fetchExpenses(), SEARCH_DEBOUNCE_MS);
+      return;
+    }
+    get().fetchExpenses();
+  },
+
+  setFilters: (patch) => {
+    // 여러 필터를 한 번에 바꾸고 조회도 한 번만 한다.
+    clearTimeout(searchTimer);
+    set((state) => ({
+      filters: (Object.keys(patch) as (keyof Filters)[]).reduce(
+        (acc, key) => applyDateFilter(acc, key, patch[key] as Filters[typeof key]),
+        state.filters
+      ),
+      page: 1,
+    }));
     get().fetchExpenses();
   },
 
   resetFilters: () => {
+    clearTimeout(searchTimer);
     set({ filters: DEFAULT_FILTERS, page: 1 });
     get().fetchExpenses();
   },

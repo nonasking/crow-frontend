@@ -9,10 +9,11 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import type { TooltipContentProps } from "recharts";
 import { useStore } from "@/store/useStore";
 import { formatKRW, formatKRWFull } from "@/lib/chartUtils";
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: Partial<TooltipContentProps<number, string>>) => {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-[#141418] border border-[#2a2a2e] px-3 py-2 text-xs font-mono">

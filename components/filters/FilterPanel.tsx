@@ -37,6 +37,7 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
   const {
     filters,
     setFilter,
+    setFilters,
     resetFilters,
     categoryOptions,
     subCategoryOptions,
@@ -63,8 +64,7 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
         )
       : filters.sub_category;
 
-    setFilter("category", next);
-    setFilter("sub_category", validSubs);
+    setFilters({ category: next, sub_category: validSubs });
   };
 
   const visibleSubCategories = filters.category.length

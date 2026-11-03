@@ -8,12 +8,13 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import type { TooltipContentProps } from "recharts";
 import { useStore } from "@/store/useStore";
 import { getColor, formatKRWFull } from "@/lib/chartUtils";
 
 type Entry = { name: string; value: number; pct: number };
 
-const CustomTooltip = ({ active, payload }: any) => {
+const CustomTooltip = ({ active, payload }: Partial<TooltipContentProps<number, string>>) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload as Entry;
   return (
@@ -25,9 +26,11 @@ const CustomTooltip = ({ active, payload }: any) => {
   );
 };
 
-const CustomLegend = ({ payload }: any) => (
+type LegendItem = { value?: string; color?: string };
+
+const CustomLegend = ({ payload }: { payload?: readonly LegendItem[] }) => (
   <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center mt-2">
-    {payload?.map((entry: any, i: number) => (
+    {payload?.map((entry, i) => (
       <div key={i} className="flex items-center gap-1.5 text-[10px] font-mono text-[#666]">
         <span
           className="inline-block w-2 h-2 rounded-full flex-shrink-0"
