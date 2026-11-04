@@ -21,6 +21,11 @@ async function handler(
     // access가 만료돼 갱신했으면 쿠키도 새 값으로 바꾼다 (set-cookie 라우트와 같은 옵션).
     onRefreshed: (access) =>
       cookieStore.set("access_token", access, ACCESS_COOKIE_OPTIONS),
+    // 만료·로그아웃된 refresh는 계속 들고 있어도 쓸 수 없으니 지운다.
+    onRefreshFailed: () => {
+      cookieStore.delete("access_token");
+      cookieStore.delete("refresh_token");
+    },
   });
 }
 

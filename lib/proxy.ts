@@ -54,7 +54,37 @@ export type RefreshOptions = {
   refreshToken?: string;
   /** 새 access를 받았을 때 호출 (라우트가 쿠키를 갱신한다) */
   onRefreshed?: (access: string) => void;
+  /** refresh 토큰으로도 갱신하지 못했을 때 호출 (만료·로그아웃된 토큰이므로 라우트가 쿠키를 지운다) */
+  onRefreshFailed?: () => void;
 };
+
+/** 로그아웃: refresh 토큰을 백엔드 blacklist에 넣는다. 실패해도 쿠키 삭제는 진행해야 하므로 예외를 삼킨다. */
+export async function revokeRefreshToken(
+  backendUrl: string,
+  refreshToken: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(buildBackendUrl(backendUrl, "auth/logout", ""), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+      cache: "no-store",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 토큰을 쿠키에 심는 라우트는 JSON 요청만 받는다.
+ * 다른 사이트의 폼은 text/plain 등으로만 보낼 수 있고(application/json은 CORS
+ * preflight가 필요해 막힌다), 그대로 받으면 공격자 계정의 토큰이 심어지는 로그인 CSRF가 된다.
+ */
+export function isJsonRequest(request: Request): boolean {
+  const type = request.headers.get("content-type") ?? "";
+  return type.split(";")[0].trim().toLowerCase() === "application/json";
+}
 
 /**
  * refresh 토큰으로 새 access를 받는다. 실패하면 null.
@@ -90,7 +120,7 @@ export async function proxyToBackend(
   subPath: string,
   accessToken?: string,
   backendUrl: string = DEFAULT_BACKEND_URL,
-  { refreshToken, onRefreshed }: RefreshOptions = {}
+  { refreshToken, onRefreshed, onRefreshFailed }: RefreshOptions = {}
 ): Promise<Response> {
   const { searchParams } = new URL(request.url);
   const target = buildBackendUrl(
@@ -100,17 +130,19 @@ export async function proxyToBackend(
   );
 
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
-  // 재시도할 때 다시 보내야 하므로 본문은 한 번만 읽어 둔다.
-  const body = hasBody ? await request.text() : undefined;
-  const send = (token?: string) =>
-    fetch(target, {
-      method: request.method,
-      headers: buildProxyHeaders(subPath, token),
-      body,
-      cache: "no-store",
-    });
 
   try {
+    // 재시도할 때 다시 보내야 하므로 본문은 한 번만 읽어 둔다.
+    // (클라이언트가 본문 전송 중 끊으면 여기서 실패한다 → 아래 catch에서 502)
+    const body = hasBody ? await request.text() : undefined;
+    const send = (token?: string) =>
+      fetch(target, {
+        method: request.method,
+        headers: buildProxyHeaders(subPath, token),
+        body,
+        cache: "no-store",
+      });
+
     let res = await send(accessToken);
 
     if (res.status === 401 && refreshToken && !shouldSkipAuth(subPath)) {
@@ -118,6 +150,8 @@ export async function proxyToBackend(
       if (fresh) {
         onRefreshed?.(fresh);
         res = await send(fresh);
+      } else {
+        onRefreshFailed?.();
       }
     }
 
