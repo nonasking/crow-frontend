@@ -43,22 +43,15 @@ const CustomLegend = ({ payload }: { payload?: readonly LegendItem[] }) => (
 );
 
 export default function CategoryPieChart() {
-  const { expenses } = useStore();
+  // 현재 페이지(20건)가 아니라 필터에 맞는 전체 지출을 서버에서 집계한 값을 쓴다.
+  const { breakdown } = useStore();
 
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
-
-  const map = new Map<string, number>();
-  for (const e of expenses) {
-    map.set(e.category, (map.get(e.category) ?? 0) + e.amount);
-  }
-
-  const data: Entry[] = Array.from(map.entries())
-    .map(([name, value]) => ({
-      name,
-      value,
-      pct: total > 0 ? (value / total) * 100 : 0,
-    }))
-    .sort((a, b) => b.value - a.value);
+  const total = breakdown?.total ?? 0;
+  const data: Entry[] = (breakdown?.by_category ?? []).map((c) => ({
+    name: c.label,
+    value: c.total,
+    pct: total > 0 ? (c.total / total) * 100 : 0,
+  }));
 
   if (!data.length) {
     return (
@@ -75,7 +68,7 @@ export default function CategoryPieChart() {
           대분류별 지출
         </h2>
         <span className="text-[10px] font-mono text-[#555] tabular-nums">
-          {expenses.length}건
+          {breakdown?.count ?? 0}건
         </span>
       </div>
 
