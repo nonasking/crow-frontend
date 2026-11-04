@@ -62,8 +62,7 @@ export function applyDateFilter<K extends keyof Filters>(
   return next;
 }
 
-/** 목록 조회용 쿼리스트링. 빈 값은 보내지 않는다. */
-/** 필터만 담은 쿼리 파라미터. 목록과 차트 집계가 같은 조건을 쓰도록 공유한다. */
+/** 필터만 담은 쿼리 파라미터(빈 값은 보내지 않는다). 목록과 차트 집계가 같은 조건을 쓰도록 공유한다. */
 export function buildFilterParams(filters: Filters): URLSearchParams {
   const params = new URLSearchParams();
 

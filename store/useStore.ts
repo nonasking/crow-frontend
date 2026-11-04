@@ -81,6 +81,7 @@ type Store = {
 
   // 차트용 집계: 현재 페이지가 아니라 필터에 맞는 전체 지출 기준
   breakdown: ExpenseBreakdown | null;
+  breakdownError: boolean;
   fetchBreakdown: () => Promise<void>;
 };
 
@@ -100,17 +101,22 @@ export const useStore = create<Store>((set, get) => ({
   categorySubcategoryMap: {},
   budgetSummary: null,
   breakdown: null,
+  breakdownError: false,
 
   fetchBreakdown: async () => {
     const requestId = ++latestBreakdownRequest;
     try {
       const query = buildFilterParams(get().filters).toString();
       const res = await fetch(`/api/expenses/expenses/breakdown/?${query}`);
-      if (!res.ok) return;
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const breakdown = await res.json();
       if (requestId !== latestBreakdownRequest) return;
-      set({ breakdown });
-    } catch {}
+      set({ breakdown, breakdownError: false });
+    } catch {
+      // 실패하면 이전 필터의 차트를 그대로 두지 않고 실패를 알린다.
+      if (requestId !== latestBreakdownRequest) return;
+      set({ breakdown: null, breakdownError: true });
+    }
   },
 
   fetchBudgetSummary: async () => {
@@ -144,6 +150,9 @@ export const useStore = create<Store>((set, get) => ({
 
   fetchExpenses: async () => {
     const requestId = ++latestExpensesRequest;
+    // 차트 집계는 필터에만 의존하므로 목록 응답을 기다리지 않고 함께 출발시킨다.
+    // (목록 뒤에 보내면 그동안 이전 필터의 차트가 보인다)
+    get().fetchBreakdown();
     try {
       set({ loading: true, error: null });
       const { filters, page, pageSize, sortKey, sortDir } = get();
@@ -163,7 +172,6 @@ export const useStore = create<Store>((set, get) => ({
         loading: false,
       });
       get().fetchBudgetSummary();
-      get().fetchBreakdown();
     } catch (e) {
       if (requestId !== latestExpensesRequest) return;
       set({ loading: false, error: String(e) });
