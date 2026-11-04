@@ -10,9 +10,9 @@ import {
 } from "recharts";
 import type { TooltipContentProps } from "recharts";
 import { useStore } from "@/store/useStore";
-import { getColor, formatKRWFull } from "@/lib/chartUtils";
+import { getColor, formatKRWFull, toPieData, type PieEntry } from "@/lib/chartUtils";
 
-type Entry = { name: string; value: number; pct: number };
+type Entry = PieEntry;
 
 const CustomTooltip = ({ active, payload }: Partial<TooltipContentProps<number, string>>) => {
   if (!active || !payload?.length) return null;
@@ -44,14 +44,16 @@ const CustomLegend = ({ payload }: { payload?: readonly LegendItem[] }) => (
 
 export default function CategoryPieChart() {
   // 현재 페이지(20건)가 아니라 필터에 맞는 전체 지출을 서버에서 집계한 값을 쓴다.
-  const { breakdown } = useStore();
+  const { breakdown, breakdownError } = useStore();
+  const { data, excluded } = toPieData(breakdown);
 
-  const total = breakdown?.total ?? 0;
-  const data: Entry[] = (breakdown?.by_category ?? []).map((c) => ({
-    name: c.label,
-    value: c.total,
-    pct: total > 0 ? (c.total / total) * 100 : 0,
-  }));
+  if (breakdownError) {
+    return (
+      <div className="flex items-center justify-center h-full text-[#b87e7e] text-xs tracking-widest">
+        차트 집계를 불러오지 못했어요
+      </div>
+    );
+  }
 
   if (!data.length) {
     return (
@@ -94,6 +96,12 @@ export default function CategoryPieChart() {
           </PieChart>
         </ResponsiveContainer>
       </div>
+
+      {excluded.length > 0 && (
+        <div className="mt-1 text-[9px] font-mono text-[#555]">
+          합계가 0 이하라 제외: {excluded.join(", ")}
+        </div>
+      )}
 
       <div className="mt-2 space-y-1">
         {data.slice(0, 5).map((d, i) => (
