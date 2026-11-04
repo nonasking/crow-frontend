@@ -10,9 +10,9 @@ import {
 } from "recharts";
 import type { TooltipContentProps } from "recharts";
 import { useStore } from "@/store/useStore";
-import { getColor, formatKRWFull } from "@/lib/chartUtils";
+import { getColor, formatKRWFull, toPieData, type PieEntry } from "@/lib/chartUtils";
 
-type Entry = { name: string; value: number; pct: number };
+type Entry = PieEntry;
 
 const CustomTooltip = ({ active, payload }: Partial<TooltipContentProps<number, string>>) => {
   if (!active || !payload?.length) return null;
@@ -43,22 +43,17 @@ const CustomLegend = ({ payload }: { payload?: readonly LegendItem[] }) => (
 );
 
 export default function CategoryPieChart() {
-  const { expenses } = useStore();
+  // 현재 페이지(20건)가 아니라 필터에 맞는 전체 지출을 서버에서 집계한 값을 쓴다.
+  const { breakdown, breakdownError } = useStore();
+  const { data, excluded } = toPieData(breakdown);
 
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
-
-  const map = new Map<string, number>();
-  for (const e of expenses) {
-    map.set(e.category, (map.get(e.category) ?? 0) + e.amount);
+  if (breakdownError) {
+    return (
+      <div className="flex items-center justify-center h-full text-[#b87e7e] text-xs tracking-widest">
+        차트 집계를 불러오지 못했어요
+      </div>
+    );
   }
-
-  const data: Entry[] = Array.from(map.entries())
-    .map(([name, value]) => ({
-      name,
-      value,
-      pct: total > 0 ? (value / total) * 100 : 0,
-    }))
-    .sort((a, b) => b.value - a.value);
 
   if (!data.length) {
     return (
@@ -75,7 +70,7 @@ export default function CategoryPieChart() {
           대분류별 지출
         </h2>
         <span className="text-[10px] font-mono text-[#555] tabular-nums">
-          {expenses.length}건
+          {breakdown?.count ?? 0}건
         </span>
       </div>
 
@@ -101,6 +96,12 @@ export default function CategoryPieChart() {
           </PieChart>
         </ResponsiveContainer>
       </div>
+
+      {excluded.length > 0 && (
+        <div className="mt-1 text-[9px] font-mono text-[#555]">
+          합계가 0 이하라 제외: {excluded.join(", ")}
+        </div>
+      )}
 
       <div className="mt-2 space-y-1">
         {data.slice(0, 5).map((d, i) => (
