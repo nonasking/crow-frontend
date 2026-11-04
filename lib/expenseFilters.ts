@@ -62,14 +62,8 @@ export function applyDateFilter<K extends keyof Filters>(
   return next;
 }
 
-/** 목록 조회용 쿼리스트링. 빈 값은 보내지 않는다. */
-export function buildQueryParams(
-  filters: Filters,
-  page: number,
-  pageSize: number,
-  sortKey: SortKey,
-  sortDir: SortDir
-): string {
+/** 필터만 담은 쿼리 파라미터(빈 값은 보내지 않는다). 목록과 차트 집계가 같은 조건을 쓰도록 공유한다. */
+export function buildFilterParams(filters: Filters): URLSearchParams {
   const params = new URLSearchParams();
 
   if (filters.spent_at_after)
@@ -89,6 +83,18 @@ export function buildQueryParams(
   if (filters.amount_max) params.set("amount_max", filters.amount_max);
   if (filters.search) params.set("search", filters.search);
 
+  return params;
+}
+
+/** 목록 조회용 쿼리스트링: 필터 + 페이지 + 정렬. */
+export function buildQueryParams(
+  filters: Filters,
+  page: number,
+  pageSize: number,
+  sortKey: SortKey,
+  sortDir: SortDir
+): string {
+  const params = buildFilterParams(filters);
   params.set("page", String(page));
   params.set("page_size", String(pageSize));
   params.set("ordering", sortDir === "desc" ? `-${sortKey}` : sortKey);

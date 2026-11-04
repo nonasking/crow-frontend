@@ -62,8 +62,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   logout: async () => {
-    await fetch("/api/auth/logout/", { method: "POST" });
-    // 쿠키 삭제 엔드포인트
+    // refresh 토큰 무효화(백엔드 logout)와 쿠키 삭제를 서버 라우트가 함께 처리한다.
     await fetch("/api/auth/clear-cookie/", { method: "POST" });
     set({ user: null, isAuthenticated: false });
   },

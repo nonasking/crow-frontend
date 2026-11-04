@@ -3,6 +3,9 @@ import {
   buildBackendUrl,
   buildProxyHeaders,
   proxyToBackend,
+  isJsonRequest,
+  refreshAccessToken,
+  revokeRefreshToken,
   shouldSkipAuth,
 } from "@/lib/proxy";
 
@@ -148,5 +151,208 @@ describe("proxyToBackend", () => {
 
     expect(res.status).toBe(502);
     await expect(res.json()).resolves.toEqual({ error: "Backend unreachable" });
+  });
+});
+
+describe("proxyToBackend: access 갱신", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** URL별로 응답을 고르는 fetch 스텁. 호출 기록을 돌려준다. */
+  function route(handlers: Record<string, (init?: RequestInit) => Response>) {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        calls.push({ url: String(url), init });
+        const key = Object.keys(handlers).find((k) => String(url).includes(k));
+        return key ? handlers[key](init) : Response.json({ detail: "no route" }, { status: 500 });
+      })
+    );
+    return calls;
+  }
+
+  it("401이면 refresh로 새 access를 받아 같은 요청을 본문과 함께 다시 보낸다", async () => {
+    const calls = route({
+      "/auth/refresh/": () => Response.json({ access: "fresh" }),
+      "/expenses/expenses/": (init) =>
+        (init?.headers as Record<string, string>)?.Authorization === "Bearer fresh"
+          ? Response.json({ id: 1 }, { status: 201 })
+          : Response.json({ detail: "expired" }, { status: 401 }),
+    });
+    const onRefreshed = vi.fn();
+
+    const req = new Request("http://localhost:3000/api/expenses/expenses/", {
+      method: "POST",
+      body: '{"amount":1000}',
+    });
+    const res = await proxyToBackend(req, "expenses/expenses", "stale", BACKEND, {
+      refreshToken: "r1",
+      onRefreshed,
+    });
+
+    // 프록시는 성공 응답을 상태 코드와 무관하게 200 + 본문으로 돌려준다(기존 동작).
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ id: 1 });
+    expect(onRefreshed).toHaveBeenCalledWith("fresh");
+    expect(calls.map((c) => c.url)).toEqual([
+      "http://backend:8000/expenses/expenses/",
+      "http://backend:8000/auth/refresh/",
+      "http://backend:8000/expenses/expenses/",
+    ]);
+    expect(calls[1].init?.body).toBe('{"refresh":"r1"}');
+    expect(calls[2].init?.body).toBe('{"amount":1000}');
+  });
+
+  it("access 쿠키가 아예 없어도(만료돼 지워짐) refresh가 있으면 갱신한다", async () => {
+    route({
+      "/auth/refresh/": () => Response.json({ access: "fresh" }),
+      "/auth/me/": (init) =>
+        (init?.headers as Record<string, string>)?.Authorization
+          ? Response.json({ username: "crow" })
+          : Response.json({ detail: "no creds" }, { status: 401 }),
+    });
+
+    const res = await proxyToBackend(new Request("http://localhost:3000/api/auth/me/"), "auth/me", undefined, BACKEND, {
+      refreshToken: "r1",
+    });
+
+    expect(res.status).toBe(200);
+  });
+
+  it("refresh도 실패하면 원래 401을 돌려주고 다시 보내지 않는다", async () => {
+    const calls = route({
+      "/auth/refresh/": () => Response.json({ detail: "expired" }, { status: 401 }),
+      "/expenses/expenses/": () => Response.json({ detail: "expired" }, { status: 401 }),
+    });
+    const onRefreshed = vi.fn();
+
+    const res = await proxyToBackend(
+      new Request("http://localhost:3000/api/expenses/expenses/"),
+      "expenses/expenses",
+      "stale",
+      BACKEND,
+      { refreshToken: "r1", onRefreshed }
+    );
+
+    expect(res.status).toBe(401);
+    expect(onRefreshed).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(2);
+  });
+
+  it("refresh 토큰이 없으면 갱신을 시도하지 않는다", async () => {
+    const calls = route({ "/expenses/expenses/": () => Response.json({ detail: "expired" }, { status: 401 }) });
+
+    const res = await proxyToBackend(new Request("http://localhost:3000/api/expenses/expenses/"), "expenses/expenses", "stale", BACKEND);
+
+    expect(res.status).toBe(401);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("로그인 실패(401)는 갱신 대상이 아니다", async () => {
+    const calls = route({ "/auth/login/": () => Response.json({ detail: "bad" }, { status: 401 }) });
+
+    const req = new Request("http://localhost:3000/api/auth/login/", { method: "POST", body: "{}" });
+    const res = await proxyToBackend(req, "auth/login", undefined, BACKEND, { refreshToken: "r1" });
+
+    expect(res.status).toBe(401);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("다시 보낸 요청도 401이면 한 번만 시도하고 그대로 돌려준다", async () => {
+    const calls = route({
+      "/auth/refresh/": () => Response.json({ access: "fresh" }),
+      "/expenses/expenses/": () => Response.json({ detail: "nope" }, { status: 401 }),
+    });
+
+    const res = await proxyToBackend(
+      new Request("http://localhost:3000/api/expenses/expenses/"),
+      "expenses/expenses",
+      "stale",
+      BACKEND,
+      { refreshToken: "r1" }
+    );
+
+    expect(res.status).toBe(401);
+    expect(calls).toHaveLength(3);
+  });
+});
+
+describe("refreshAccessToken", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("access가 문자열이 아니면 null", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ access: 123 })));
+    await expect(refreshAccessToken(BACKEND, "r")).resolves.toBeNull();
+  });
+
+  it("네트워크 오류면 null", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("fetch failed"); }));
+    await expect(refreshAccessToken(BACKEND, "r")).resolves.toBeNull();
+  });
+});
+
+describe("로그아웃·쿠키 보호", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("refresh 갱신에 실패하면 onRefreshFailed를 부른다 (쿠키 정리용)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ detail: "blacklisted" }, { status: 401 }))
+    );
+    const onRefreshFailed = vi.fn();
+
+    await proxyToBackend(new Request("http://localhost:3000/api/auth/me/"), "auth/me", "stale", BACKEND, {
+      refreshToken: "revoked",
+      onRefreshFailed,
+    });
+
+    expect(onRefreshFailed).toHaveBeenCalledOnce();
+  });
+
+  it("revokeRefreshToken은 refresh를 본문에 담아 백엔드 logout을 부른다", async () => {
+    const spy = vi.fn(async () => Response.json({ detail: "ok" }));
+    vi.stubGlobal("fetch", spy);
+
+    await expect(revokeRefreshToken(BACKEND, "r1")).resolves.toBe(true);
+
+    const [url, init] = spy.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("http://backend:8000/auth/logout/");
+    expect(init.method).toBe("POST");
+    expect(init.body).toBe('{"refresh":"r1"}');
+  });
+
+  it("revokeRefreshToken은 백엔드에 닿지 못해도 예외를 던지지 않는다", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("fetch failed"); }));
+    await expect(revokeRefreshToken(BACKEND, "r1")).resolves.toBe(false);
+  });
+
+  it.each([
+    ["application/json", true],
+    ["application/json; charset=utf-8", true],
+    ["text/plain", false],
+    ["application/x-www-form-urlencoded", false],
+    [null, false],
+  ])("isJsonRequest(%s) = %s", (type, expected) => {
+    const headers = type ? { "Content-Type": type } : undefined;
+    const req = new Request("http://localhost:3000/api/auth/set-cookie/", { method: "POST", headers, body: "{}" });
+    // Request는 본문이 있으면 기본 content-type을 붙이므로, 없음 케이스는 헤더를 지운다.
+    if (!type) req.headers.delete("content-type");
+    expect(isJsonRequest(req)).toBe(expected);
+  });
+
+  it("본문을 읽다 실패하면 500이 아니라 502로 응답한다", async () => {
+    const req = new Request("http://localhost:3000/api/expenses/expenses/", { method: "POST", body: "{}" });
+    vi.spyOn(req, "text").mockRejectedValue(new TypeError("aborted"));
+    vi.stubGlobal("fetch", vi.fn());
+
+    const res = await proxyToBackend(req, "expenses/expenses", "tok", BACKEND);
+
+    expect(res.status).toBe(502);
   });
 });
