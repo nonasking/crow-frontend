@@ -21,9 +21,14 @@ function stubFetch(body: unknown = {}, ok = true) {
   return spy;
 }
 
-/** fetchExpenses가 호출한 목록 URL(첫 호출)의 쿼리 파라미터 */
+/** 목록 API 호출인지 (요약·차트 집계 호출과 구분) */
+function isListCall(url: unknown) {
+  return String(url).startsWith("/api/expenses/expenses/?");
+}
+
+/** fetchExpenses가 호출한 첫 목록 URL의 쿼리 파라미터 (집계·요약 호출은 건너뛴다) */
 function listParams(spy: ReturnType<typeof stubFetch>) {
-  const url = String(spy.mock.calls[0][0]);
+  const url = String(spy.mock.calls.find(([u]) => isListCall(u))?.[0] ?? "");
   return new URLSearchParams(url.split("?")[1] ?? "");
 }
 
@@ -224,7 +229,7 @@ describe("동시 요청 / 디바운스", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((url: string) => {
-        if (String(url).includes("/summary/")) return Promise.resolve(Response.json({}));
+        if (!isListCall(url)) return Promise.resolve(Response.json({}));
         return new Promise<Response>((resolve) => resolvers.push(resolve));
       })
     );
@@ -253,7 +258,7 @@ describe("동시 요청 / 디바운스", () => {
       expect(spy).not.toHaveBeenCalled();
 
       await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
-      const lists = spy.mock.calls.filter(([url]) => !String(url).includes("/summary/"));
+      const lists = spy.mock.calls.filter(([url]) => isListCall(url));
       expect(lists).toHaveLength(1);
       expect(listParams(spy).get("search")).toBe("스타벅스");
     } finally {
@@ -267,7 +272,7 @@ describe("동시 요청 / 디바운스", () => {
     useStore.getState().setFilters({ category: ["food"], sub_category: ["cafe"] });
     await vi.waitFor(() => expect(spy).toHaveBeenCalled());
 
-    const lists = spy.mock.calls.filter(([url]) => !String(url).includes("/summary/"));
+    const lists = spy.mock.calls.filter(([url]) => isListCall(url));
     expect(lists).toHaveLength(1);
     expect(listParams(spy).getAll("category")).toEqual(["food"]);
     expect(useStore.getState().filters.sub_category).toEqual(["cafe"]);
@@ -290,5 +295,89 @@ describe("deleteExpenses 실패 처리", () => {
 
     await expect(useStore.getState().deleteExpenses([1, 2])).rejects.toThrow(/1건 삭제 실패 \(id: 2\)/);
     expect(useStore.getState().expenses).toHaveLength(2);
+  });
+});
+
+
+describe("fetchBreakdown (차트 집계)", () => {
+  it("목록과 같은 필터만 보내고 페이지·정렬은 보내지 않는다", async () => {
+    const spy = stubFetch({ total: 0, count: 0, by_category: [], by_month: [] });
+    useStore.setState({
+      page: 3,
+      sortKey: "amount",
+      sortDir: "asc",
+      filters: { ...getInitialFilters(), category: ["FOOD"], search: "커피" },
+    });
+
+    await useStore.getState().fetchBreakdown();
+
+    const url = String(spy.mock.calls[0][0]);
+    expect(url.startsWith("/api/expenses/expenses/breakdown/?")).toBe(true);
+    const params = new URLSearchParams(url.split("?")[1]);
+    expect(params.get("category")).toBe("FOOD");
+    expect(params.get("search")).toBe("커피");
+    expect(params.has("page")).toBe(false);
+    expect(params.has("ordering")).toBe(false);
+  });
+
+  it("목록을 다시 읽을 때 집계도 새로 받는다", async () => {
+    const spy = stubFetch(LIST_RESPONSE);
+
+    await useStore.getState().fetchExpenses();
+    await vi.waitFor(() =>
+      expect(spy.mock.calls.some(([url]) => String(url).includes("/breakdown/"))).toBe(true)
+    );
+  });
+
+  it("늦게 도착한 옛 집계 응답은 버린다", async () => {
+    const resolvers: ((r: Response) => void)[] = [];
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => resolvers.push(resolve))));
+
+    const first = useStore.getState().fetchBreakdown();
+    const second = useStore.getState().fetchBreakdown();
+    resolvers[1](Response.json({ total: 2, count: 2, by_category: [], by_month: [] }));
+    await second;
+    resolvers[0](Response.json({ total: 1, count: 1, by_category: [], by_month: [] }));
+    await first;
+
+    expect(useStore.getState().breakdown?.total).toBe(2);
+  });
+});
+
+
+describe("fetchBreakdown 실패·순서", () => {
+  it("집계가 실패하면 이전 차트를 지우고 실패 상태를 켠다", async () => {
+    useStore.setState({ breakdown: { total: 1, count: 1, by_category: [], by_month: [] } });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail: "x" }, { status: 404 })));
+
+    await useStore.getState().fetchBreakdown();
+
+    expect(useStore.getState().breakdown).toBeNull();
+    expect(useStore.getState().breakdownError).toBe(true);
+  });
+
+  it("성공하면 실패 상태를 끈다", async () => {
+    useStore.setState({ breakdownError: true });
+    stubFetch({ total: 0, count: 0, by_category: [], by_month: [] });
+
+    await useStore.getState().fetchBreakdown();
+
+    expect(useStore.getState().breakdownError).toBe(false);
+  });
+
+  it("목록 응답을 기다리지 않고 집계 요청을 함께 보낸다", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        calls.push(String(url));
+        // 목록은 끝나지 않게 두고, 그 사이 집계가 이미 나갔는지 본다.
+        return isListCall(url) ? new Promise<Response>(() => {}) : Promise.resolve(Response.json({}));
+      })
+    );
+
+    useStore.getState().fetchExpenses();
+    await vi.waitFor(() => expect(calls.some((u) => u.includes("/breakdown/"))).toBe(true));
+    expect(calls.some((u) => isListCall(u))).toBe(true);
   });
 });

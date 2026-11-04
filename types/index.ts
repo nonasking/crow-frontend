@@ -49,6 +49,14 @@ export type BudgetSummary = {
   count: number;
 };
 
+/** GET /expenses/expenses/breakdown/ — 필터를 적용한 전체 지출의 대분류별·월별 집계 */
+export type ExpenseBreakdown = {
+  total: number;
+  count: number;
+  by_category: { category: string; label: string; total: number; count: number }[];
+  by_month: { month: string; total: number; count: number }[];
+};
+
 export type ExpenseCreatePayload = {
   spent_at: string;
   category: string;

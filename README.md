@@ -7,7 +7,7 @@ Personal expense tracking app built with Next.js. Connects to [crow-backend](../
 - **Expense management** — create, edit, and delete expenses with inline modals
 - **Filtering & sorting** — filter by date range, category, subcategory, payment method, and amount; sort by any column
 - **Budget tracking** — daily budget allocation with remaining budget and usage percentage
-- **Charts** — category breakdown (pie) and monthly trend (bar) powered by Recharts. They are computed from the rows on the current table page (20 by default), not the whole filtered set; a backend aggregate endpoint is needed for that
+- **Charts** — category breakdown (pie) and monthly trend (bar) powered by Recharts, aggregated server-side over every expense that matches the current filters (`GET /expenses/expenses/breakdown/`), not just the rows on the current table page
 - **JWT authentication** — login/logout with tokens stored in HttpOnly cookies via a Next.js API proxy; no tokens in `localStorage`. When the backend answers `401`, the proxy trades the refresh-token cookie for a new access token once (`POST /auth/refresh/`), updates the cookie and replays the request, so a login lasts the refresh token's 7 days instead of the access token's 24 hours. Logging out revokes the refresh token on the backend (blacklist) before the cookies are cleared, and the cookie-setting route only accepts `application/json` so a cross-site form can't plant someone else's tokens (login CSRF)
 - **Route protection** — `AuthGuard` wraps all pages and redirects unauthenticated users to `/login`
 
@@ -130,7 +130,7 @@ The suite covers the pure logic behind the app rather than rendered markup:
 |---|---|
 | `lib/__tests__/proxy.test.ts` | Proxy internals — the `NO_AUTH_PATHS` allowlist, `Authorization` header injection, backend URL building, and the error paths (upstream status passthrough, `204`, `502` when the backend is unreachable), plus the one-shot access refresh on `401` (body replayed, cookie callback, no refresh for login or without a refresh token, no loop) with `fetch` mocked |
 | `lib/__tests__/expenseFilters.test.ts` | Filter/query logic — date-range correction, query-string building, sort direction toggling |
-| `store/__tests__/useStore.test.ts` | Zustand expense store — fetch/error state, pagination and sort transitions, filter resets, delete fan-out and partial-failure reporting, stale responses ignored, search debounce, batched filter updates |
+| `store/__tests__/useStore.test.ts` | Zustand expense store — fetch/error state, pagination and sort transitions, filter resets, delete fan-out and partial-failure reporting, stale responses ignored, search debounce, batched filter updates, chart breakdown fetched with the list's filters (no page/ordering) |
 | `lib/__tests__/chartUtils.test.ts` | Chart color cycling and KRW formatters |
 
 The proxy and filter logic used to live inline in the route handler and the store. They were extracted into `lib/proxy.ts` and `lib/expenseFilters.ts` so they can be tested without booting Next.js; the route handler and store are thin callers of those helpers.

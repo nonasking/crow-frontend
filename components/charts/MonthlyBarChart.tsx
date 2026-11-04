@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import type { TooltipContentProps } from "recharts";
 import { useStore } from "@/store/useStore";
-import { formatKRW, formatKRWFull } from "@/lib/chartUtils";
+import { formatKRW, formatKRWFull, toBarData } from "@/lib/chartUtils";
 
 const CustomTooltip = ({ active, payload, label }: Partial<TooltipContentProps<number, string>>) => {
   if (!active || !payload?.length) return null;
@@ -24,22 +24,18 @@ const CustomTooltip = ({ active, payload, label }: Partial<TooltipContentProps<n
 };
 
 export default function MonthlyBarChart() {
-  const { expenses } = useStore();
+  // 현재 페이지(20건)가 아니라 필터에 맞는 전체 지출을 서버에서 집계한 값을 쓴다.
+  const { breakdown, breakdownError } = useStore();
+  // 서버가 "YYYY-MM" 오름차순으로 준다.
+  const data = toBarData(breakdown);
 
-  const map = new Map<string, number>();
-  for (const e of expenses) {
-    const month = e.spent_at.slice(0, 7); // "YYYY-MM"
-    map.set(month, (map.get(month) ?? 0) + e.amount);
+  if (breakdownError) {
+    return (
+      <div className="flex items-center justify-center h-full text-[#b87e7e] text-xs tracking-widest">
+        차트 집계를 불러오지 못했어요
+      </div>
+    );
   }
-
-  const data = Array.from(map.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, total]) => ({
-      month: month.slice(2), // "YY-MM"
-      total,
-    }));
-
-  const maxVal = Math.max(...data.map((d) => d.total), 1);
 
   if (!data.length) {
     return (
@@ -76,7 +72,7 @@ export default function MonthlyBarChart() {
                 <Cell
                   key={i}
                   fill="#c9a96e"
-                  opacity={0.3 + 0.7 * (d.total / maxVal)}
+                  opacity={d.opacity}
                 />
               ))}
             </Bar>

@@ -3,6 +3,7 @@ import {
   DEFAULT_FILTERS,
   applyDateFilter,
   buildBudgetSummaryParams,
+  buildFilterParams,
   buildQueryParams,
   getInitialFilters,
   nextSortDir,
@@ -132,5 +133,25 @@ describe("nextSortDir", () => {
 
   it("다른 컬럼이면 오름차순부터 시작한다", () => {
     expect(nextSortDir("spent_at", "desc", "amount")).toBe("asc");
+  });
+});
+
+
+describe("buildFilterParams", () => {
+  it("필터만 담고 페이지·정렬은 담지 않는다 (차트 집계와 목록이 공유)", () => {
+    const params = buildFilterParams({ ...DEFAULT_FILTERS, category: ["FOOD", "TRANSPORT"], amount_min: "1000" });
+    expect(params.get("category")).toBe("FOOD,TRANSPORT");
+    expect(params.get("amount_min")).toBe("1000");
+    expect(params.has("page")).toBe(false);
+    expect(params.has("page_size")).toBe(false);
+    expect(params.has("ordering")).toBe(false);
+  });
+
+  it("목록 쿼리는 같은 필터에 페이지·정렬을 더한다", () => {
+    const filters = { ...DEFAULT_FILTERS, search: "커피" };
+    const list = new URLSearchParams(buildQueryParams(filters, 2, 20, "amount", "desc"));
+    const only = buildFilterParams(filters);
+    for (const [k, v] of only) expect(list.get(k)).toBe(v);
+    expect(list.get("ordering")).toBe("-amount");
   });
 });
