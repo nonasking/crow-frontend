@@ -26,9 +26,9 @@ function isListCall(url: unknown) {
   return String(url).startsWith("/api/expenses/expenses/?");
 }
 
-/** fetchExpenses가 호출한 목록 URL(첫 호출)의 쿼리 파라미터 */
+/** fetchExpenses가 호출한 첫 목록 URL의 쿼리 파라미터 (집계·요약 호출은 건너뛴다) */
 function listParams(spy: ReturnType<typeof stubFetch>) {
-  const url = String(spy.mock.calls[0][0]);
+  const url = String(spy.mock.calls.find(([u]) => isListCall(u))?.[0] ?? "");
   return new URLSearchParams(url.split("?")[1] ?? "");
 }
 
@@ -229,7 +229,7 @@ describe("동시 요청 / 디바운스", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((url: string) => {
-        if (String(url).includes("/summary/")) return Promise.resolve(Response.json({}));
+        if (!isListCall(url)) return Promise.resolve(Response.json({}));
         return new Promise<Response>((resolve) => resolvers.push(resolve));
       })
     );
@@ -341,5 +341,43 @@ describe("fetchBreakdown (차트 집계)", () => {
     await first;
 
     expect(useStore.getState().breakdown?.total).toBe(2);
+  });
+});
+
+
+describe("fetchBreakdown 실패·순서", () => {
+  it("집계가 실패하면 이전 차트를 지우고 실패 상태를 켠다", async () => {
+    useStore.setState({ breakdown: { total: 1, count: 1, by_category: [], by_month: [] } });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ detail: "x" }, { status: 404 })));
+
+    await useStore.getState().fetchBreakdown();
+
+    expect(useStore.getState().breakdown).toBeNull();
+    expect(useStore.getState().breakdownError).toBe(true);
+  });
+
+  it("성공하면 실패 상태를 끈다", async () => {
+    useStore.setState({ breakdownError: true });
+    stubFetch({ total: 0, count: 0, by_category: [], by_month: [] });
+
+    await useStore.getState().fetchBreakdown();
+
+    expect(useStore.getState().breakdownError).toBe(false);
+  });
+
+  it("목록 응답을 기다리지 않고 집계 요청을 함께 보낸다", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        calls.push(String(url));
+        // 목록은 끝나지 않게 두고, 그 사이 집계가 이미 나갔는지 본다.
+        return isListCall(url) ? new Promise<Response>(() => {}) : Promise.resolve(Response.json({}));
+      })
+    );
+
+    useStore.getState().fetchExpenses();
+    await vi.waitFor(() => expect(calls.some((u) => u.includes("/breakdown/"))).toBe(true));
+    expect(calls.some((u) => isListCall(u))).toBe(true);
   });
 });
