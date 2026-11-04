@@ -8,7 +8,7 @@ Personal expense tracking app built with Next.js. Connects to [crow-backend](../
 - **Filtering & sorting** — filter by date range, category, subcategory, payment method, and amount; sort by any column
 - **Budget tracking** — daily budget allocation with remaining budget and usage percentage
 - **Charts** — category breakdown (pie) and monthly trend (bar) powered by Recharts. They are computed from the rows on the current table page (20 by default), not the whole filtered set; a backend aggregate endpoint is needed for that
-- **JWT authentication** — login/logout with tokens stored in HttpOnly cookies via a Next.js API proxy; no tokens in `localStorage`. When the backend answers `401`, the proxy trades the refresh-token cookie for a new access token once (`POST /auth/refresh/`), updates the cookie and replays the request, so a login lasts the refresh token's 7 days instead of the access token's 24 hours
+- **JWT authentication** — login/logout with tokens stored in HttpOnly cookies via a Next.js API proxy; no tokens in `localStorage`. When the backend answers `401`, the proxy trades the refresh-token cookie for a new access token once (`POST /auth/refresh/`), updates the cookie and replays the request, so a login lasts the refresh token's 7 days instead of the access token's 24 hours. Logging out revokes the refresh token on the backend (blacklist) before the cookies are cleared, and the cookie-setting route only accepts `application/json` so a cross-site form can't plant someone else's tokens (login CSRF)
 - **Route protection** — `AuthGuard` wraps all pages and redirects unauthenticated users to `/login`
 
 ## Tech Stack

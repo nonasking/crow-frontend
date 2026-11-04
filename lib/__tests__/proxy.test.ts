@@ -3,7 +3,9 @@ import {
   buildBackendUrl,
   buildProxyHeaders,
   proxyToBackend,
+  isJsonRequest,
   refreshAccessToken,
+  revokeRefreshToken,
   shouldSkipAuth,
 } from "@/lib/proxy";
 
@@ -290,5 +292,67 @@ describe("refreshAccessToken", () => {
   it("네트워크 오류면 null", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("fetch failed"); }));
     await expect(refreshAccessToken(BACKEND, "r")).resolves.toBeNull();
+  });
+});
+
+describe("로그아웃·쿠키 보호", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("refresh 갱신에 실패하면 onRefreshFailed를 부른다 (쿠키 정리용)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ detail: "blacklisted" }, { status: 401 }))
+    );
+    const onRefreshFailed = vi.fn();
+
+    await proxyToBackend(new Request("http://localhost:3000/api/auth/me/"), "auth/me", "stale", BACKEND, {
+      refreshToken: "revoked",
+      onRefreshFailed,
+    });
+
+    expect(onRefreshFailed).toHaveBeenCalledOnce();
+  });
+
+  it("revokeRefreshToken은 refresh를 본문에 담아 백엔드 logout을 부른다", async () => {
+    const spy = vi.fn(async () => Response.json({ detail: "ok" }));
+    vi.stubGlobal("fetch", spy);
+
+    await expect(revokeRefreshToken(BACKEND, "r1")).resolves.toBe(true);
+
+    const [url, init] = spy.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("http://backend:8000/auth/logout/");
+    expect(init.method).toBe("POST");
+    expect(init.body).toBe('{"refresh":"r1"}');
+  });
+
+  it("revokeRefreshToken은 백엔드에 닿지 못해도 예외를 던지지 않는다", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("fetch failed"); }));
+    await expect(revokeRefreshToken(BACKEND, "r1")).resolves.toBe(false);
+  });
+
+  it.each([
+    ["application/json", true],
+    ["application/json; charset=utf-8", true],
+    ["text/plain", false],
+    ["application/x-www-form-urlencoded", false],
+    [null, false],
+  ])("isJsonRequest(%s) = %s", (type, expected) => {
+    const headers = type ? { "Content-Type": type } : undefined;
+    const req = new Request("http://localhost:3000/api/auth/set-cookie/", { method: "POST", headers, body: "{}" });
+    // Request는 본문이 있으면 기본 content-type을 붙이므로, 없음 케이스는 헤더를 지운다.
+    if (!type) req.headers.delete("content-type");
+    expect(isJsonRequest(req)).toBe(expected);
+  });
+
+  it("본문을 읽다 실패하면 500이 아니라 502로 응답한다", async () => {
+    const req = new Request("http://localhost:3000/api/expenses/expenses/", { method: "POST", body: "{}" });
+    vi.spyOn(req, "text").mockRejectedValue(new TypeError("aborted"));
+    vi.stubGlobal("fetch", vi.fn());
+
+    const res = await proxyToBackend(req, "expenses/expenses", "tok", BACKEND);
+
+    expect(res.status).toBe(502);
   });
 });
