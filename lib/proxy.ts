@@ -4,7 +4,10 @@
  */
 
 /** 토큰 없이 호출해야 하는 엔드포인트만 제외 */
-export const NO_AUTH_PATHS = ["auth/login/"];
+export const NO_AUTH_PATHS = ["auth/login/", "auth/refresh/"];
+
+/** access 갱신에 쓰는 백엔드 경로 */
+export const REFRESH_PATH = "auth/refresh";
 
 export const DEFAULT_BACKEND_URL = "http://localhost:8000";
 
@@ -46,15 +49,48 @@ export function buildProxyHeaders(
   return headers;
 }
 
+export type RefreshOptions = {
+  /** 쿠키에 있는 refresh 토큰 */
+  refreshToken?: string;
+  /** 새 access를 받았을 때 호출 (라우트가 쿠키를 갱신한다) */
+  onRefreshed?: (access: string) => void;
+};
+
+/**
+ * refresh 토큰으로 새 access를 받는다. 실패하면 null.
+ * 백엔드: POST /auth/refresh/ {"refresh"} → {"access"}
+ */
+export async function refreshAccessToken(
+  backendUrl: string,
+  refreshToken: string
+): Promise<string | null> {
+  try {
+    const res = await fetch(buildBackendUrl(backendUrl, REFRESH_PATH, ""), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data?.access === "string" ? data.access : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * 요청을 백엔드로 전달하고 응답을 그대로 돌려준다.
+ * 백엔드가 401이고 refresh 토큰이 있으면, access를 한 번 갱신해 같은 요청을 다시 보낸다.
+ * (access는 24시간, refresh는 7일이라 갱신 없이는 하루마다 로그인이 풀린다)
  * 백엔드에 닿지 못하면 502로 응답한다.
  */
 export async function proxyToBackend(
   request: Request,
   subPath: string,
   accessToken?: string,
-  backendUrl: string = DEFAULT_BACKEND_URL
+  backendUrl: string = DEFAULT_BACKEND_URL,
+  { refreshToken, onRefreshed }: RefreshOptions = {}
 ): Promise<Response> {
   const { searchParams } = new URL(request.url);
   const target = buildBackendUrl(
@@ -64,14 +100,26 @@ export async function proxyToBackend(
   );
 
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
-
-  try {
-    const res = await fetch(target, {
+  // 재시도할 때 다시 보내야 하므로 본문은 한 번만 읽어 둔다.
+  const body = hasBody ? await request.text() : undefined;
+  const send = (token?: string) =>
+    fetch(target, {
       method: request.method,
-      headers: buildProxyHeaders(subPath, accessToken),
-      body: hasBody ? await request.text() : undefined,
+      headers: buildProxyHeaders(subPath, token),
+      body,
       cache: "no-store",
     });
+
+  try {
+    let res = await send(accessToken);
+
+    if (res.status === 401 && refreshToken && !shouldSkipAuth(subPath)) {
+      const fresh = await refreshAccessToken(backendUrl, refreshToken);
+      if (fresh) {
+        onRefreshed?.(fresh);
+        res = await send(fresh);
+      }
+    }
 
     if (!res.ok) {
       const errorBody = await res.json().catch(() => ({
