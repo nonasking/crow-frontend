@@ -123,6 +123,18 @@ describe("buildBudgetSummaryParams", () => {
     expect(params.get("month")).toBe("11");
     expect(params.has("spent_at_after")).toBe(false);
   });
+
+  it("소분류를 고르면 대분류와 함께 보낸다", () => {
+    const params = new URLSearchParams(
+      buildBudgetSummaryParams({
+        ...base,
+        category: ["ALLOWANCE"],
+        sub_category: ["ALLOWANCE_MS", "ALLOWANCE_MK"],
+      })
+    );
+    expect(params.get("category")).toBe("ALLOWANCE");
+    expect(params.get("sub_category")).toBe("ALLOWANCE_MS,ALLOWANCE_MK");
+  });
 });
 
 describe("nextSortDir", () => {
