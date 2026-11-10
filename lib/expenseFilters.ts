@@ -117,6 +117,8 @@ export function buildBudgetSummaryParams(
 
   if (filters.category.length)
     params.set("category", filters.category.join(","));
+  if (filters.sub_category.length)
+    params.set("sub_category", filters.sub_category.join(","));
   if (filters.spent_at_after)
     params.set("spent_at_after", filters.spent_at_after);
   if (filters.spent_at_before)
