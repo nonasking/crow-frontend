@@ -5,6 +5,7 @@ import {
   buildBudgetSummaryParams,
   buildFilterParams,
   buildQueryParams,
+  getDatePresetRange,
   getInitialFilters,
   nextSortDir,
 } from "@/lib/expenseFilters";
@@ -22,6 +23,62 @@ describe("getInitialFilters", () => {
     expect(filters.spent_at_after).toBe("2026-02-01");
     expect(filters.spent_at_before).toBe("2026-02-28");
     expect(filters.category).toEqual([]);
+  });
+});
+
+describe("getDatePresetRange", () => {
+  const thu = new Date(2026, 10, 12, 23, 30); // 2026-11-12 (목) 23:30
+
+  it("오늘은 시작일과 종료일이 모두 오늘이다", () => {
+    expect(getDatePresetRange("today", thu)).toEqual({
+      spent_at_after: "2026-11-12",
+      spent_at_before: "2026-11-12",
+    });
+  });
+
+  it("이번 주는 월요일~일요일이다", () => {
+    expect(getDatePresetRange("thisWeek", thu)).toEqual({
+      spent_at_after: "2026-11-09",
+      spent_at_before: "2026-11-15",
+    });
+  });
+
+  it("일요일의 이번 주는 그 전 월요일부터다", () => {
+    expect(getDatePresetRange("thisWeek", new Date(2026, 10, 15))).toEqual({
+      spent_at_after: "2026-11-09",
+      spent_at_before: "2026-11-15",
+    });
+  });
+
+  it("이번 주가 달·해를 넘어가도 날짜가 맞다", () => {
+    // 2026-12-31 (목) → 12/28(월) ~ 2027-01-03(일)
+    expect(getDatePresetRange("thisWeek", new Date(2026, 11, 31))).toEqual({
+      spent_at_after: "2026-12-28",
+      spent_at_before: "2027-01-03",
+    });
+  });
+
+  it("이번 달은 초기 필터와 같은 1일~말일이다", () => {
+    const initial = getInitialFilters(thu);
+    expect(getDatePresetRange("thisMonth", thu)).toEqual({
+      spent_at_after: initial.spent_at_after,
+      spent_at_before: initial.spent_at_before,
+    });
+  });
+
+  it("지난 달은 1월이면 작년 12월이다", () => {
+    expect(getDatePresetRange("lastMonth", new Date(2027, 0, 20))).toEqual({
+      spent_at_after: "2026-12-01",
+      spent_at_before: "2026-12-31",
+    });
+  });
+
+  it("지난 달 말일을 그 달 길이대로 잡는다", () => {
+    // 3/31에서 지난 달은 2월(28일)
+    expect(getDatePresetRange("lastMonth", new Date(2026, 2, 31))).toEqual({
+      spent_at_after: "2026-02-01",
+      spent_at_before: "2026-02-28",
+    });
   });
 });
 
