@@ -15,6 +15,63 @@ export function getLastDayOfMonth(now: Date = new Date()): string {
   return `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 }
 
+/** 로컬 날짜를 "YYYY-MM-DD"로 */
+function toDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+export type DatePreset = "today" | "thisWeek" | "thisMonth" | "lastMonth";
+
+export const DATE_PRESETS: { value: DatePreset; label: string }[] = [
+  { value: "today", label: "오늘" },
+  { value: "thisWeek", label: "이번 주" },
+  { value: "thisMonth", label: "이번 달" },
+  { value: "lastMonth", label: "지난 달" },
+];
+
+/**
+ * 빠른 기간 선택 칩의 시작일/종료일.
+ * 이번 주는 월요일~일요일, 이번 달·지난 달은 1일~말일이다.
+ */
+export function getDatePresetRange(
+  preset: DatePreset,
+  now: Date = new Date()
+): Pick<Filters, "spent_at_after" | "spent_at_before"> {
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const d = now.getDate();
+
+  switch (preset) {
+    case "today": {
+      const today = toDateString(now);
+      return { spent_at_after: today, spent_at_before: today };
+    }
+    case "thisWeek": {
+      // getDay(): 일=0, 월=1 … 토=6. 월요일까지 거슬러 갈 일수
+      const sinceMonday = (now.getDay() + 6) % 7;
+      return {
+        spent_at_after: toDateString(new Date(y, m, d - sinceMonday)),
+        spent_at_before: toDateString(new Date(y, m, d - sinceMonday + 6)),
+      };
+    }
+    case "thisMonth":
+      return {
+        spent_at_after: getFirstDayOfMonth(now),
+        spent_at_before: getLastDayOfMonth(now),
+      };
+    case "lastMonth": {
+      const lastMonth = new Date(y, m - 1, 1);
+      return {
+        spent_at_after: getFirstDayOfMonth(lastMonth),
+        spent_at_before: getLastDayOfMonth(lastMonth),
+      };
+    }
+  }
+}
+
 export const DEFAULT_FILTERS: Filters = {
   spent_at_after: "",
   spent_at_before: "",
