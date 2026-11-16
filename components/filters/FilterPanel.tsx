@@ -1,5 +1,6 @@
 "use client";
 
+import { DATE_PRESETS, getDatePresetRange } from "@/lib/expenseFilters";
 import { useStore } from "@/store/useStore";
 
 function Chip({
@@ -126,6 +127,22 @@ export default function FilterPanel({ onClose }: { onClose?: () => void }) {
               className="w-full bg-transparent border border-[#222] text-[#888] text-[10px] px-2 py-1.5 font-mono focus:outline-none focus:border-[#444]"
             />
           </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5 pt-2">
+          {DATE_PRESETS.map((preset) => {
+            const range = getDatePresetRange(preset.value);
+            return (
+              <Chip
+                key={preset.value}
+                label={preset.label}
+                active={
+                  filters.spent_at_after === range.spent_at_after &&
+                  filters.spent_at_before === range.spent_at_before
+                }
+                onClick={() => setFilters(range)}
+              />
+            );
+          })}
         </div>
 
         {/* Categories */}

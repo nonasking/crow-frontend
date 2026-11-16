@@ -129,7 +129,7 @@ The suite covers the pure logic behind the app rather than rendered markup:
 | Suite | Covers |
 |---|---|
 | `lib/__tests__/proxy.test.ts` | Proxy internals — the `NO_AUTH_PATHS` allowlist, `Authorization` header injection, backend URL building, and the error paths (upstream status passthrough, `204`, `502` when the backend is unreachable), plus the one-shot access refresh on `401` (body replayed, cookie callback, no refresh for login or without a refresh token, no loop) with `fetch` mocked |
-| `lib/__tests__/expenseFilters.test.ts` | Filter/query logic — date-range correction, query-string building, sort direction toggling |
+| `lib/__tests__/expenseFilters.test.ts` | Filter/query logic — date-range correction, quick date presets (today, this week Mon–Sun across month/year ends, this month, last month), query-string building, sort direction toggling |
 | `store/__tests__/useStore.test.ts` | Zustand expense store — fetch/error state, pagination and sort transitions, filter resets, delete fan-out and partial-failure reporting, stale responses ignored, search debounce, batched filter updates, chart breakdown fetched with the list's filters (no page/ordering) |
 | `lib/__tests__/chartUtils.test.ts` | Chart color cycling and KRW formatters |
 
@@ -171,7 +171,7 @@ crow-frontend/
 ├── types/index.ts               # Shared TypeScript types
 ├── lib/
 │   ├── proxy.ts                 # Proxy logic: auth allowlist, header injection, fallbacks
-│   ├── expenseFilters.ts        # Date-range correction, query-string building, sorting
+│   ├── expenseFilters.ts        # Date-range correction, date presets, query-string building, sorting
 │   ├── chartUtils.ts            # Chart colors and KRW formatters
 │   ├── api/budget.ts            # Budget API calls
 │   ├── queries/budgetQueries.ts # React Query hooks for budgets
